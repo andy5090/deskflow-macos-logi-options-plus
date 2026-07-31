@@ -26,6 +26,7 @@
 #include "mt/Lock.h"
 #include "mt/Mutex.h"
 #include "mt/Thread.h"
+#include "platform/OSXAutoTypes.h"
 #include "platform/OSXClipboard.h"
 #include "platform/OSXEventQueueBuffer.h"
 #include "platform/OSXKeyState.h"
@@ -785,6 +786,8 @@ void OSXScreen::enter()
   showCursor();
 
   if (m_isPrimary) {
+    restoreInputSource();
+
     // re-couple the mouse to the cursor, undoing the capture from leave()
     CGAssociateMouseAndMouseCursorPosition(true);
     setZeroSuppressionInterval();
@@ -821,10 +824,101 @@ void OSXScreen::leave()
     // a client (onMouseMove reads raw deltas instead). must follow hideCursor(),
     // which re-associates. re-coupled in enter()/disable().
     CGAssociateMouseAndMouseCursorPosition(false);
+
+    if (Settings::value(Settings::Server::SwitchToAsciiOnLeave).toBool()) {
+      switchToAsciiInputSource();
+    }
   }
 
   // now off screen
   m_isOnScreen = false;
+}
+
+void OSXScreen::switchToAsciiInputSource()
+{
+  if (!m_savedInputSourceId.empty()) {
+    return;
+  }
+
+  std::lock_guard<std::mutex> lock(g_tisMutex);
+  AutoTISInputSourceRef currentSource(TISCopyCurrentKeyboardInputSource(), CFRelease);
+  AutoTISInputSourceRef asciiSource(TISCopyCurrentASCIICapableKeyboardInputSource(), CFRelease);
+  if (!currentSource || !asciiSource) {
+    LOG_WARN("failed to get current or ASCII-capable macOS input source");
+    return;
+  }
+
+  auto currentSourceId =
+      static_cast<CFStringRef>(TISGetInputSourceProperty(currentSource.get(), kTISPropertyInputSourceID));
+  auto asciiSourceId =
+      static_cast<CFStringRef>(TISGetInputSourceProperty(asciiSource.get(), kTISPropertyInputSourceID));
+  if (!currentSourceId || !asciiSourceId) {
+    LOG_WARN("failed to get macOS input source identifier");
+    return;
+  }
+
+  if (CFEqual(currentSourceId, asciiSourceId)) {
+    return;
+  }
+
+  auto savedSourceId = CFStringRefToUTF8String(currentSourceId);
+  if (!savedSourceId) {
+    LOG_WARN("failed to encode macOS input source identifier");
+    return;
+  }
+
+  if (TISSelectInputSource(asciiSource.get()) != noErr) {
+    LOG_WARN("failed to switch to an ASCII-capable macOS input source");
+    free(savedSourceId);
+    return;
+  }
+
+  m_savedInputSourceId = savedSourceId;
+  free(savedSourceId);
+  LOG_DEBUG("switched to an ASCII-capable macOS input source");
+}
+
+void OSXScreen::restoreInputSource()
+{
+  if (m_savedInputSourceId.empty()) {
+    return;
+  }
+
+  using AutoCFString = std::unique_ptr<const __CFString, CFDeallocator>;
+
+  std::lock_guard<std::mutex> lock(g_tisMutex);
+  AutoCFString savedSourceId(
+      CFStringCreateWithCString(kCFAllocatorDefault, m_savedInputSourceId.c_str(), kCFStringEncodingUTF8), CFRelease
+  );
+  if (!savedSourceId) {
+    LOG_WARN("failed to decode saved macOS input source identifier");
+    m_savedInputSourceId.clear();
+    return;
+  }
+
+  const void *keys[] = {kTISPropertyInputSourceID};
+  const void *values[] = {savedSourceId.get()};
+  AutoCFDictionary filter(
+      CFDictionaryCreate(
+          kCFAllocatorDefault, keys, values, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks
+      ),
+      CFRelease
+  );
+  AutoCFArray sources(TISCreateInputSourceList(filter.get(), true), CFRelease);
+  if (!sources || CFArrayGetCount(sources.get()) == 0) {
+    LOG_WARN("saved macOS input source is no longer available");
+    m_savedInputSourceId.clear();
+    return;
+  }
+
+  auto source = static_cast<TISInputSourceRef>(const_cast<void *>(CFArrayGetValueAtIndex(sources.get(), 0)));
+  if (TISSelectInputSource(source) != noErr) {
+    LOG_WARN("failed to restore the previous macOS input source");
+    return;
+  }
+
+  m_savedInputSourceId.clear();
+  LOG_DEBUG("restored the previous macOS input source");
 }
 
 bool OSXScreen::setClipboard(ClipboardID, const IClipboard *src)
@@ -1697,7 +1791,16 @@ CGEventRef OSXScreen::handleCGInputEvent(CGEventTapProxy proxy, CGEventType type
         screen->mapScrollWheelToDeskflow(CGEventGetIntegerValueField(event, kCGScrollWheelEventDeltaAxis1))
     );
     break;
-  case kCGEventKeyDown:
+  case kCGEventKeyDown: {
+    const auto keyCode = static_cast<CGKeyCode>(CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode));
+    const auto isAutoRepeat = CGEventGetIntegerValueField(event, kCGKeyboardEventAutorepeat) != 0;
+    if (!screen->m_isOnScreen && isEmergencyReturnKey(type, keyCode, CGEventGetFlags(event), isAutoRepeat)) {
+      LOG_WARN("macOS emergency return shortcut pressed");
+      screen->sendEvent(EventTypes::ServerReturnToPrimary);
+      return nullptr;
+    }
+    [[fallthrough]];
+  }
   case kCGEventKeyUp:
   case kCGEventFlagsChanged:
     screen->onKey(event);
@@ -1734,6 +1837,13 @@ CGEventRef OSXScreen::handleCGInputEvent(CGEventTapProxy proxy, CGEventType type
   } else {
     return nullptr;
   }
+}
+
+bool OSXScreen::isEmergencyReturnKey(CGEventType type, CGKeyCode keyCode, CGEventFlags flags, bool isAutoRepeat)
+{
+  constexpr auto requiredModifiers = kCGEventFlagMaskControl | kCGEventFlagMaskAlternate | kCGEventFlagMaskCommand;
+  return type == kCGEventKeyDown && keyCode == kVK_Escape && !isAutoRepeat &&
+         (flags & requiredModifiers) == requiredModifiers;
 }
 
 void OSXScreen::MouseButtonState::set(uint32_t button, EMouseButtonState state)
@@ -1781,7 +1891,7 @@ char *OSXScreen::CFStringRefToUTF8String(CFStringRef aString)
   }
 
   CFIndex length = CFStringGetLength(aString);
-  CFIndex maxSize = CFStringGetMaximumSizeForEncoding(length, kCFStringEncodingUTF8);
+  CFIndex maxSize = CFStringGetMaximumSizeForEncoding(length, kCFStringEncodingUTF8) + 1;
   char *buffer = (char *)malloc(maxSize);
 
   if (!CFStringGetCString(aString, buffer, maxSize, kCFStringEncodingUTF8)) {

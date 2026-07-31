@@ -136,6 +136,9 @@ enum class EventTypes : uint32_t
   /// This event is sent to inform the server to toggle computers.  These is no event data.
   ServerToggleScreen,
 
+  /// This event is sent to make the server immediately return input to the primary computer.
+  ServerReturnToPrimary,
+
   /** This event is sent to inform the server to switch computers.
       The event data is a pointer to SwitchInDirectionInfo that indicates the target direction.
   */

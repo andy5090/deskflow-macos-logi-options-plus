@@ -1281,6 +1281,18 @@ Al habilitar esta opción, se deshabilitará la interfaz gráfica de usuario (GU
         <translation type="unfinished">Mostrar la ventana principal</translation>
     </message>
     <message>
+        <source>Prevents macOS input methods from intercepting keys sent to another computer. The previous input source is restored when returning.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use an ASCII input source while controlling another computer (macOS)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Emergency return to this Mac: Control + Option + Command + Escape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Run command on enter</source>
         <translation type="unfinished">Ejecutar comando al presionar Enter</translation>
     </message>

@@ -22,6 +22,7 @@ private Q_SLOTS:
   void tlsTrustedServersDb();
   void tlsTrustedClientsDb();
   void checkValidSettings();
+  void switchToAsciiOnLeaveDefaultsToFalse();
   void checkCleanScreenName();
   void checkCleanScreenName_LongName();
 
