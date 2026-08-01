@@ -16,4 +16,6 @@ private Q_SLOTS:
   void emergencyReturnKey_acceptsRequiredChord();
   void emergencyReturnKey_acceptsAdditionalModifiers();
   void emergencyReturnKey_rejectsIncompleteOrRepeatedChord();
+  void enforceAsciiInputSource_onlyWhileControllingRemote();
+  void remoteCapsLockMask_togglesOnlyForPhysicalKey();
 };
