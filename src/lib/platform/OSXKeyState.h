@@ -1,5 +1,6 @@
 /*
  * Deskflow -- mouse and keyboard sharing utility
+ * SPDX-FileCopyrightText: (C) 2026 Deskflow Developers
  * SPDX-FileCopyrightText: (C) 2012 - 2016 Synergy App Ltd
  * SPDX-FileCopyrightText: (C) 2004 Chris Schoeneman
  * SPDX-License-Identifier: GPL-2.0-only WITH LicenseRef-OpenSSL-Exception
@@ -23,6 +24,8 @@ A key state for OS X.
 */
 class OSXKeyState : public KeyState
 {
+  friend class OSXKeyStateTests;
+
 public:
   using KeyIDs = std::vector<KeyID>;
 
@@ -65,7 +68,9 @@ public:
   that was pressed or released, or 0 if the button doesn't map to a known
   KeyID.
   */
-  KeyButton mapKeyFromEvent(KeyIDs &ids, KeyModifierMask *maskOut, CGEventRef event) const;
+  KeyButton mapKeyFromEvent(
+      KeyIDs &ids, KeyModifierMask *maskOut, CGEventRef event, bool useRemoteCapsLockState
+  ) const;
 
   //! Map key and mask to native values
   /*!
@@ -92,6 +97,10 @@ protected:
   void fakeKey(const Keystroke &keystroke) override;
 
 private:
+  static uint32_t adjustModifiersForRemoteCapsLock(
+      uint32_t modifiers, KeyModifierMask activeModifiers, bool enabled
+  );
+
   class KeyResource;
 
   // Add hard coded special keys to a deskflow::KeyMap.

@@ -1267,7 +1267,7 @@ bool OSXScreen::onKey(CGEventRef event)
   // map event to keys
   KeyModifierMask mask;
   OSXKeyState::KeyIDs keys;
-  KeyButton button = m_keyState->mapKeyFromEvent(keys, &mask, event);
+  KeyButton button = m_keyState->mapKeyFromEvent(keys, &mask, event, enforceAscii);
   if (button == 0) {
     return false;
   }

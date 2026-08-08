@@ -1,5 +1,6 @@
 /*
  * Deskflow -- mouse and keyboard sharing utility
+ * SPDX-FileCopyrightText: (C) 2026 Deskflow Developers
  * SPDX-FileCopyrightText: (C) 2012 - 2016 Synergy App Ltd
  * SPDX-FileCopyrightText: (C) 2004 Chris Schoeneman
  * SPDX-License-Identifier: GPL-2.0-only WITH LicenseRef-OpenSSL-Exception
@@ -260,7 +261,24 @@ KeyModifierMask OSXKeyState::mapModifiersToCarbon(uint32_t mask) const
   return outMask;
 }
 
-KeyButton OSXKeyState::mapKeyFromEvent(KeyIDs &ids, KeyModifierMask *maskOut, CGEventRef event) const
+uint32_t OSXKeyState::adjustModifiersForRemoteCapsLock(
+    uint32_t modifiers, KeyModifierMask activeModifiers, bool enabled
+)
+{
+  if (!enabled) {
+    return modifiers;
+  }
+
+  if ((activeModifiers & KeyModifierCapsLock) != 0) {
+    return modifiers | alphaLock;
+  }
+
+  return modifiers & ~alphaLock;
+}
+
+KeyButton OSXKeyState::mapKeyFromEvent(
+    KeyIDs &ids, KeyModifierMask *maskOut, CGEventRef event, bool useRemoteCapsLockState
+) const
 {
   ids.clear();
 
@@ -311,6 +329,7 @@ KeyButton OSXKeyState::mapKeyFromEvent(KeyIDs &ids, KeyModifierMask *maskOut, CG
   // UCKeyTranslate expects old-style Carbon modifiers, so convert.
   uint32_t modifiers;
   modifiers = mapModifiersToCarbon(CGEventGetFlags(event));
+  modifiers = adjustModifiersForRemoteCapsLock(modifiers, getActiveModifiers(), useRemoteCapsLockState);
   static const uint32_t s_commandModifiers = cmdKey | controlKey | rightControlKey;
   bool isCommand = ((modifiers & s_commandModifiers) != 0);
   modifiers &= ~s_commandModifiers;
