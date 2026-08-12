@@ -1304,6 +1304,18 @@ Al habilitar esta opción, se deshabilitará la interfaz gráfica de usuario (GU
         <source>Using a log level higher than Info may affect performance.</source>
         <translation type="unfinished">Utilizar un nivel de registro superior a Info puede afectar el rendimiento.</translation>
     </message>
+    <message>
+        <source>macOS navigation gestures</source>
+        <translation>Gestos de navegación de macOS</translation>
+    </message>
+    <message>
+        <source>Forward navigation gestures as Back and Forward mouse buttons</source>
+        <translation>Reenviar los gestos de navegación como botones Atrás y Adelante del ratón</translation>
+    </message>
+    <message>
+        <source>Supports software such as Logi Options+. Turn this off if it conflicts with trackpad gestures.</source>
+        <translation>Compatible con software como Logi Options+. Desactive esta opción si interfiere con los gestos del trackpad.</translation>
+    </message>
 </context>
 <context>
     <name>StatusBar</name>

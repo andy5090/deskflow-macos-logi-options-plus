@@ -61,6 +61,12 @@ enum
 };
 
 static const double kCarbonLoopWaitTimeout = 10.0;
+static constexpr auto kNavigationGestureEventType = static_cast<CGEventType>(NSEventTypeGesture);
+// CoreGraphics does not publish this field. Its value is reverse engineered
+// and matches the gesture events observed from Logi Options+.
+static constexpr auto kNavigationGestureSwipeDirectionField = static_cast<CGEventField>(117);
+static constexpr int64_t kNavigationGestureSwipeLeft = 4;
+static constexpr int64_t kNavigationGestureSwipeRight = 8;
 
 int getSecureInputEventPID();
 std::string getProcessName(int pid);
@@ -839,8 +845,7 @@ bool OSXScreen::shouldEnforceAsciiInputSource(bool isPrimary, bool isOnScreen, b
   return isPrimary && !isOnScreen && settingEnabled;
 }
 
-KeyModifierMask
-OSXScreen::adjustRemoteCapsLockMask(KeyModifierMask oldMask, KeyModifierMask newMask, CGKeyCode keyCode)
+KeyModifierMask OSXScreen::adjustRemoteCapsLockMask(KeyModifierMask oldMask, KeyModifierMask newMask, CGKeyCode keyCode)
 {
   if (keyCode == kVK_CapsLock) {
     return (newMask & ~KeyModifierCapsLock) | ((oldMask ^ KeyModifierCapsLock) & KeyModifierCapsLock);
@@ -982,12 +987,18 @@ void OSXScreen::screensaver(bool activate)
 
 void OSXScreen::resetOptions()
 {
-  // no options
+  m_navigationGesturesEnabled = false;
 }
 
-void OSXScreen::setOptions(const OptionsList &)
+void OSXScreen::setOptions(const OptionsList &options)
 {
-  // no options
+  if (options.size() % 2 != 0) {
+    LOG_ERR("options are the incorrect size, can not process them");
+    return;
+  }
+
+  m_navigationGesturesEnabled = navigationGesturesEnabledFromOptions(options, m_navigationGesturesEnabled);
+  LOG_VERBOSE("macOS navigation gesture forwarding: %s", m_navigationGesturesEnabled ? "enabled" : "disabled");
 }
 
 void OSXScreen::setSequenceNumber(uint32_t seqNum)
@@ -1846,6 +1857,28 @@ CGEventRef OSXScreen::handleCGInputEvent(CGEventTapProxy proxy, CGEventType type
     break;
   case NX_NULLEVENT:
     break;
+  case kNavigationGestureEventType: {
+    // Leave local and opt-out behavior untouched, including avoiding access to
+    // the undocumented field below.
+    if (screen->m_isOnScreen || !screen->m_navigationGesturesEnabled) {
+      break;
+    }
+
+    const auto direction = CGEventGetIntegerValueField(event, kNavigationGestureSwipeDirectionField);
+    const auto button =
+        classifyNavigationGestureButton(type, screen->m_isOnScreen, screen->m_navigationGesturesEnabled, direction);
+    if (button == kButtonNone) {
+      break;
+    }
+
+    const auto mask = screen->m_keyState->getActiveModifiers();
+    screen->sendEvent(EventTypes::PrimaryScreenButtonDown, ButtonInfo::alloc(button, mask));
+    screen->sendEvent(EventTypes::PrimaryScreenButtonUp, ButtonInfo::alloc(button, mask));
+    LOG_DEBUG(
+        "forwarding macOS navigation gesture direction=%lld as button=%d", static_cast<long long>(direction), button
+    );
+    break;
+  }
   default:
     if (type == NX_SYSDEFINED) {
       if (isMediaKeyEvent(event)) {
@@ -1873,6 +1906,36 @@ bool OSXScreen::isEmergencyReturnKey(CGEventType type, CGKeyCode keyCode, CGEven
   constexpr auto requiredModifiers = kCGEventFlagMaskControl | kCGEventFlagMaskAlternate | kCGEventFlagMaskCommand;
   return type == kCGEventKeyDown && keyCode == kVK_Escape && !isAutoRepeat &&
          (flags & requiredModifiers) == requiredModifiers;
+}
+
+bool OSXScreen::navigationGesturesEnabledFromOptions(const OptionsList &options, bool currentValue)
+{
+  if (options.size() % 2 != 0) {
+    return currentValue;
+  }
+
+  for (size_t i = 0; i < options.size(); i += 2) {
+    if (options[i] == kOptionMacNavigationGestures) {
+      currentValue = options[i + 1] != 0;
+    }
+  }
+  return currentValue;
+}
+
+ButtonID OSXScreen::classifyNavigationGestureButton(CGEventType type, bool isOnScreen, bool enabled, int64_t direction)
+{
+  if (type != kNavigationGestureEventType || isOnScreen || !enabled) {
+    return kButtonNone;
+  }
+
+  switch (direction) {
+  case kNavigationGestureSwipeLeft:
+    return kButtonExtra0;
+  case kNavigationGestureSwipeRight:
+    return kButtonExtra1;
+  default:
+    return kButtonNone;
+  }
 }
 
 void OSXScreen::MouseButtonState::set(uint32_t button, EMouseButtonState state)

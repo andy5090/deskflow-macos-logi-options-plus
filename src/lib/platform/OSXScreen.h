@@ -181,6 +181,9 @@ private:
   static char *CFStringRefToUTF8String(CFStringRef aString);
 
 private:
+  static bool navigationGesturesEnabledFromOptions(const OptionsList &options, bool currentValue);
+  static ButtonID classifyNavigationGestureButton(CGEventType type, bool isOnScreen, bool enabled, int64_t direction);
+
   struct HotKeyItem
   {
   public:
@@ -258,6 +261,8 @@ private:
   std::vector<MouseButtonEventMapType> MouseButtonEventMap;
 
   bool m_cursorHidden;
+
+  bool m_navigationGesturesEnabled = false;
 
   // keyboard stuff
   OSXKeyState *m_keyState;

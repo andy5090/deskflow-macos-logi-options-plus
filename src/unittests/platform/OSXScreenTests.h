@@ -18,4 +18,6 @@ private Q_SLOTS:
   void emergencyReturnKey_rejectsIncompleteOrRepeatedChord();
   void enforceAsciiInputSource_onlyWhileControllingRemote();
   void remoteCapsLockMask_togglesOnlyForPhysicalKey();
+  void navigationGestureOption_appliesOnlyValidMatchingOptions();
+  void navigationGesture_forwardsOnlyWhenEnabledAndOffscreen();
 };

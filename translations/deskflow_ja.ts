@@ -1306,6 +1306,18 @@ Enabling this setting will disable the server config GUI.</source>
         <source>Using a log level higher than Info may affect performance.</source>
         <translation>Infoよりも高いログレベルを使用すると、パフォーマンスに影響を及ぼす可能性があります。</translation>
     </message>
+    <message>
+        <source>macOS navigation gestures</source>
+        <translation>macOSのナビゲーションジェスチャ</translation>
+    </message>
+    <message>
+        <source>Forward navigation gestures as Back and Forward mouse buttons</source>
+        <translation>ナビゲーションジェスチャをマウスの「戻る」「進む」ボタンとして転送</translation>
+    </message>
+    <message>
+        <source>Supports software such as Logi Options+. Turn this off if it conflicts with trackpad gestures.</source>
+        <translation>Logi Options+ などのソフトウェアに対応します。トラックパッドのジェスチャと競合する場合はオフにしてください。</translation>
+    </message>
 </context>
 <context>
     <name>StatusBar</name>

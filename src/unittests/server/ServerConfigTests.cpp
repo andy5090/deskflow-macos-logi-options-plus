@@ -9,6 +9,8 @@
 
 #include "server/Config.h"
 
+#include <sstream>
+
 class OnlySystemFilter : public InputFilter::Condition
 {
 public:
@@ -78,6 +80,17 @@ void ServerConfigTests::equalityCheck_diff_options()
   QVERIFY(a.addOption("screenA", kOptionClipboardSharing, 0));
   QVERIFY(b.addOption("screenA", kOptionClipboardSharing, 1));
   QVERIFY(a != b);
+}
+
+void ServerConfigTests::serializesMacNavigationGestureOption()
+{
+  Config config(nullptr);
+  QVERIFY(config.addOption("", kOptionMacNavigationGestures, 1));
+
+  std::ostringstream stream;
+  stream << config;
+
+  QVERIFY(QString::fromStdString(stream.str()).contains(QStringLiteral("macNavigationGestures = true")));
 }
 
 void ServerConfigTests::equalityCheck_diff_alias()

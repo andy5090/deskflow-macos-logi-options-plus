@@ -46,23 +46,46 @@ void OSXScreenTests::enforceAsciiInputSource_onlyWhileControllingRemote()
 
 void OSXScreenTests::remoteCapsLockMask_togglesOnlyForPhysicalKey()
 {
-  QCOMPARE(
-      OSXScreen::adjustRemoteCapsLockMask(0, KeyModifierCapsLock, kVK_CapsLock), KeyModifierCapsLock
-  );
+  QCOMPARE(OSXScreen::adjustRemoteCapsLockMask(0, KeyModifierCapsLock, kVK_CapsLock), KeyModifierCapsLock);
   QCOMPARE(
       OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, KeyModifierCapsLock, kVK_CapsLock),
       static_cast<KeyModifierMask>(0)
   );
-  QCOMPARE(
-      OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, 0, 0xff), KeyModifierCapsLock
-  );
-  QCOMPARE(
-      OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, 0, kVK_ANSI_Period), KeyModifierCapsLock
-  );
+  QCOMPARE(OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, 0, 0xff), KeyModifierCapsLock);
+  QCOMPARE(OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, 0, kVK_ANSI_Period), KeyModifierCapsLock);
   QCOMPARE(
       OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, KeyModifierShift, 0xff),
       static_cast<KeyModifierMask>(KeyModifierCapsLock | KeyModifierShift)
   );
+}
+
+void OSXScreenTests::navigationGestureOption_appliesOnlyValidMatchingOptions()
+{
+  const OptionsList enabled = {kOptionMacNavigationGestures, 1};
+  const OptionsList disabled = {kOptionMacNavigationGestures, 0};
+  const OptionsList unrelated = {kOptionClipboardSharing, 1};
+  const OptionsList malformed = {kOptionMacNavigationGestures};
+
+  QVERIFY(OSXScreen::navigationGesturesEnabledFromOptions(enabled, false));
+  QVERIFY(!OSXScreen::navigationGesturesEnabledFromOptions(disabled, true));
+  QVERIFY(!OSXScreen::navigationGesturesEnabledFromOptions(unrelated, false));
+  QVERIFY(OSXScreen::navigationGesturesEnabledFromOptions(unrelated, true));
+  QVERIFY(!OSXScreen::navigationGesturesEnabledFromOptions(malformed, false));
+  QVERIFY(OSXScreen::navigationGesturesEnabledFromOptions(malformed, true));
+}
+
+void OSXScreenTests::navigationGesture_forwardsOnlyWhenEnabledAndOffscreen()
+{
+  // NSEventTypeGesture is unavailable to this pure C++ test target.
+  constexpr auto gestureType = static_cast<CGEventType>(29);
+
+  QCOMPARE(OSXScreen::classifyNavigationGestureButton(gestureType, false, true, 4), kButtonExtra0);
+  QCOMPARE(OSXScreen::classifyNavigationGestureButton(gestureType, false, true, 8), kButtonExtra1);
+  QCOMPARE(OSXScreen::classifyNavigationGestureButton(gestureType, false, false, 4), kButtonNone);
+  QCOMPARE(OSXScreen::classifyNavigationGestureButton(gestureType, true, true, 4), kButtonNone);
+  QCOMPARE(OSXScreen::classifyNavigationGestureButton(kCGEventScrollWheel, false, true, 4), kButtonNone);
+  QCOMPARE(OSXScreen::classifyNavigationGestureButton(gestureType, false, true, 0), kButtonNone);
+  QCOMPARE(OSXScreen::classifyNavigationGestureButton(gestureType, false, true, 12), kButtonNone);
 }
 
 QTEST_MAIN(OSXScreenTests)

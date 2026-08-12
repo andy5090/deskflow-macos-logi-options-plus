@@ -108,6 +108,7 @@ public:
     inline static const auto DisableLockToComputer = QStringLiteral("server/disableLockToComputer");
     inline static const auto EnableClipboard = QStringLiteral("server/enableClipboard");
     inline static const auto EnableHeatbeat = QStringLiteral("server/enableHeatbeat");
+    inline static const auto MacNavigationGesturesEnabled = QStringLiteral("server/macNavigationGesturesEnabled");
     inline static const auto EnableSwitchDelay = QStringLiteral("server/enableSwitchDelay");
     inline static const auto EnableSwitchDoubleTap = QStringLiteral("server/enableSwitchDoubleTap");
     inline static const auto ExternalConfig = QStringLiteral("server/externalConfig");
@@ -298,6 +299,7 @@ private:
     , Settings::Server::DisableLockToComputer
     , Settings::Server::EnableClipboard
     , Settings::Server::EnableHeatbeat
+    , Settings::Server::MacNavigationGesturesEnabled
     , Settings::Server::EnableSwitchDelay
     , Settings::Server::EnableSwitchDoubleTap
     , Settings::Server::ExternalConfig
@@ -333,6 +335,7 @@ private:
     , Settings::Server::DefaultLockToComputerState
     , Settings::Server::DisableLockToComputer
     , Settings::Server::EnableHeatbeat
+    , Settings::Server::MacNavigationGesturesEnabled
     , Settings::Server::EnableSwitchDelay
     , Settings::Server::EnableSwitchDoubleTap
     , Settings::Server::ExternalConfig

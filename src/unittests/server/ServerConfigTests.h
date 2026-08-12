@@ -12,6 +12,7 @@ class ServerConfigTests : public QObject
 private Q_SLOTS:
   void equalityCheck();
   void equalityCheck_diff_options();
+  void serializesMacNavigationGestureOption();
   void equalityCheck_diff_alias();
   void equalityCheck_diff_filters();
   //  void equalityCheck_diff_address();
