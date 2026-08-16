@@ -18,4 +18,14 @@ private Q_SLOTS:
   void emergencyReturnKey_rejectsIncompleteOrRepeatedChord();
   void enforceAsciiInputSource_onlyWhileControllingRemote();
   void remoteCapsLockMask_togglesOnlyForPhysicalKey();
+  void navigationGesturesEnabledFromOptions_enabledOption_returnsTrue();
+  void navigationGesturesEnabledFromOptions_disabledOption_returnsFalse();
+  void navigationGesturesEnabledFromOptions_unrelatedOption_preservesCurrentValue();
+  void navigationGesturesEnabledFromOptions_malformedOptions_preservesCurrentValue();
+  void classifyNavigationGestureButton_swipeLeft_returnsExtra0();
+  void classifyNavigationGestureButton_swipeRight_returnsExtra1();
+  void classifyNavigationGestureButton_disabled_returnsNone();
+  void classifyNavigationGestureButton_localScreen_returnsNone();
+  void classifyNavigationGestureButton_nonGestureEvent_returnsNone();
+  void classifyNavigationGestureButton_zeroDelta_returnsNone();
 };

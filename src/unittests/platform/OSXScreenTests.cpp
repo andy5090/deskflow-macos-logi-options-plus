@@ -12,6 +12,9 @@ namespace {
 
 constexpr auto kEmergencyModifiers = kCGEventFlagMaskControl | kCGEventFlagMaskAlternate | kCGEventFlagMaskCommand;
 
+// NSEventTypeGesture is unavailable to this pure C++ test target.
+constexpr auto kGestureType = static_cast<CGEventType>(29);
+
 } // namespace
 
 void OSXScreenTests::emergencyReturnKey_acceptsRequiredChord()
@@ -63,6 +66,64 @@ void OSXScreenTests::remoteCapsLockMask_togglesOnlyForPhysicalKey()
       OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, KeyModifierShift, 0xff),
       static_cast<KeyModifierMask>(KeyModifierCapsLock | KeyModifierShift)
   );
+}
+
+void OSXScreenTests::navigationGesturesEnabledFromOptions_enabledOption_returnsTrue()
+{
+  const OptionsList enabled = {kOptionMacNavigationGestures, 1};
+
+  QVERIFY(OSXScreen::navigationGesturesEnabledFromOptions(enabled, false));
+}
+
+void OSXScreenTests::navigationGesturesEnabledFromOptions_disabledOption_returnsFalse()
+{
+  const OptionsList disabled = {kOptionMacNavigationGestures, 0};
+
+  QVERIFY(!OSXScreen::navigationGesturesEnabledFromOptions(disabled, true));
+}
+
+void OSXScreenTests::navigationGesturesEnabledFromOptions_unrelatedOption_preservesCurrentValue()
+{
+  const OptionsList unrelated = {kOptionClipboardSharing, 1};
+
+  QVERIFY(OSXScreen::navigationGesturesEnabledFromOptions(unrelated, true));
+}
+
+void OSXScreenTests::navigationGesturesEnabledFromOptions_malformedOptions_preservesCurrentValue()
+{
+  const OptionsList malformed = {kOptionMacNavigationGestures};
+
+  QVERIFY(OSXScreen::navigationGesturesEnabledFromOptions(malformed, true));
+}
+
+void OSXScreenTests::classifyNavigationGestureButton_swipeLeft_returnsExtra0()
+{
+  QCOMPARE(OSXScreen::classifyNavigationGestureButton(kGestureType, false, true, 1.0), kButtonExtra0);
+}
+
+void OSXScreenTests::classifyNavigationGestureButton_swipeRight_returnsExtra1()
+{
+  QCOMPARE(OSXScreen::classifyNavigationGestureButton(kGestureType, false, true, -1.0), kButtonExtra1);
+}
+
+void OSXScreenTests::classifyNavigationGestureButton_disabled_returnsNone()
+{
+  QCOMPARE(OSXScreen::classifyNavigationGestureButton(kGestureType, false, false, 1.0), kButtonNone);
+}
+
+void OSXScreenTests::classifyNavigationGestureButton_localScreen_returnsNone()
+{
+  QCOMPARE(OSXScreen::classifyNavigationGestureButton(kGestureType, true, true, 1.0), kButtonNone);
+}
+
+void OSXScreenTests::classifyNavigationGestureButton_nonGestureEvent_returnsNone()
+{
+  QCOMPARE(OSXScreen::classifyNavigationGestureButton(kCGEventScrollWheel, false, true, 1.0), kButtonNone);
+}
+
+void OSXScreenTests::classifyNavigationGestureButton_zeroDelta_returnsNone()
+{
+  QCOMPARE(OSXScreen::classifyNavigationGestureButton(kGestureType, false, true, 0.0), kButtonNone);
 }
 
 QTEST_MAIN(OSXScreenTests)

@@ -61,6 +61,7 @@ enum
 };
 
 static const double kCarbonLoopWaitTimeout = 10.0;
+static constexpr auto kNavigationGestureEventType = static_cast<CGEventType>(NSEventTypeGesture);
 
 // Synthetic mouse button and drag events require event numbers on macOS 27 and later.
 static inline bool needsEventNumber()
@@ -992,12 +993,18 @@ void OSXScreen::screensaver(bool activate)
 
 void OSXScreen::resetOptions()
 {
-  // no options
+  m_navigationGesturesEnabled = false;
 }
 
-void OSXScreen::setOptions(const OptionsList &)
+void OSXScreen::setOptions(const OptionsList &options)
 {
-  // no options
+  if (options.size() % 2 != 0) {
+    LOG_ERR("options are the incorrect size, can not process them");
+    return;
+  }
+
+  m_navigationGesturesEnabled = navigationGesturesEnabledFromOptions(options, m_navigationGesturesEnabled);
+  LOG_VERBOSE("macOS navigation gesture forwarding: %s", m_navigationGesturesEnabled ? "enabled" : "disabled");
 }
 
 void OSXScreen::setSequenceNumber(uint32_t seqNum)
@@ -1856,6 +1863,29 @@ CGEventRef OSXScreen::handleCGInputEvent(CGEventTapProxy proxy, CGEventType type
     break;
   case NX_NULLEVENT:
     break;
+  case kNavigationGestureEventType: {
+    if (screen->m_isOnScreen || !screen->m_navigationGesturesEnabled) {
+      break;
+    }
+
+    NSEvent *nativeEvent = [NSEvent eventWithCGEvent:event];
+    if (nativeEvent == nil || nativeEvent.type != NSEventTypeSwipe) {
+      break;
+    }
+
+    const auto deltaX = static_cast<double>(nativeEvent.deltaX);
+    const auto button =
+        classifyNavigationGestureButton(type, screen->m_isOnScreen, screen->m_navigationGesturesEnabled, deltaX);
+    if (button == kButtonNone) {
+      break;
+    }
+
+    const auto mask = screen->m_keyState->getActiveModifiers();
+    screen->sendEvent(EventTypes::PrimaryScreenButtonDown, ButtonInfo::alloc(button, mask));
+    screen->sendEvent(EventTypes::PrimaryScreenButtonUp, ButtonInfo::alloc(button, mask));
+    LOG_DEBUG("forwarding macOS navigation gesture deltaX=%+.3f as button=%d", deltaX, button);
+    break;
+  }
   default:
     if (type == NX_SYSDEFINED) {
       if (isMediaKeyEvent(event)) {
@@ -1883,6 +1913,35 @@ bool OSXScreen::isEmergencyReturnKey(CGEventType type, CGKeyCode keyCode, CGEven
   constexpr auto requiredModifiers = kCGEventFlagMaskControl | kCGEventFlagMaskAlternate | kCGEventFlagMaskCommand;
   return type == kCGEventKeyDown && keyCode == kVK_Escape && !isAutoRepeat &&
          (flags & requiredModifiers) == requiredModifiers;
+}
+
+bool OSXScreen::navigationGesturesEnabledFromOptions(const OptionsList &options, bool currentValue)
+{
+  if (options.size() % 2 != 0) {
+    return currentValue;
+  }
+
+  for (size_t i = 0; i < options.size(); i += 2) {
+    if (options[i] == kOptionMacNavigationGestures) {
+      currentValue = options[i + 1] != 0;
+    }
+  }
+  return currentValue;
+}
+
+ButtonID OSXScreen::classifyNavigationGestureButton(CGEventType type, bool isOnScreen, bool enabled, double deltaX)
+{
+  if (type != kNavigationGestureEventType || isOnScreen || !enabled) {
+    return kButtonNone;
+  }
+
+  if (deltaX > 0.0) {
+    return kButtonExtra0;
+  }
+  if (deltaX < 0.0) {
+    return kButtonExtra1;
+  }
+  return kButtonNone;
 }
 
 void OSXScreen::MouseButtonState::set(uint32_t button, EMouseButtonState state)
