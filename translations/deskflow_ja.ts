@@ -1242,6 +1242,18 @@ Enabling this setting will disable the server config GUI.</source>
         <translation>メインウィンドウを表示する</translation>
     </message>
     <message>
+        <source>Prevents macOS input methods from intercepting keys sent to another computer. The previous input source is restored when returning.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use an ASCII input source while controlling another computer (macOS)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Emergency return to this Mac: Control + Option + Command + Escape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Run command on enter</source>
         <translation>画面に入る時にコマンドを実行</translation>
     </message>

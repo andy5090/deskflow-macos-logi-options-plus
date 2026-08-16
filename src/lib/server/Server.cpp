@@ -107,6 +107,9 @@ Server::Server(ServerConfig &config, PrimaryClient *primaryClient, deskflow::Scr
   m_events->addHandler(EventTypes::ServerToggleScreen, m_inputFilter, [this](const auto &e) {
     handleToggleScreenEvent(e);
   });
+  m_events->addHandler(EventTypes::ServerReturnToPrimary, m_primaryClient->getEventTarget(), [this](const auto &) {
+    handleReturnToPrimaryEvent();
+  });
   m_events->addHandler(EventTypes::ServerKeyboardBroadcast, m_inputFilter, [this](const auto &e) {
     handleKeyboardBroadcastEvent(e);
   });
@@ -157,6 +160,7 @@ Server::~Server()
   m_events->removeHandler(PrimaryScreenSaverDeactivated, m_primaryClient->getEventTarget());
   m_events->removeHandler(PrimaryScreenFakeInputBegin, m_inputFilter);
   m_events->removeHandler(PrimaryScreenFakeInputEnd, m_inputFilter);
+  m_events->removeHandler(ServerReturnToPrimary, m_primaryClient->getEventTarget());
   m_events->removeHandler(Timer, this);
   stopSwitch();
 
@@ -1356,6 +1360,19 @@ void Server::handleToggleScreenEvent(const Event &)
   }
 
   jumpToScreen(clientIt->second);
+}
+
+void Server::handleReturnToPrimaryEvent()
+{
+  if (m_active == m_primaryClient) {
+    return;
+  }
+
+  int32_t x;
+  int32_t y;
+  m_primaryClient->getCursorCenter(x, y);
+  LOG_WARN("emergency return to primary screen requested");
+  switchScreen(m_primaryClient, x, y, false);
 }
 
 void Server::handleKeyboardBroadcastEvent(const Event &event)

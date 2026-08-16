@@ -1240,6 +1240,18 @@ Enabling this setting will disable the server config GUI.</source>
         <translation type="unfinished">메인 창을 표시합니다</translation>
     </message>
     <message>
+        <source>Prevents macOS input methods from intercepting keys sent to another computer. The previous input source is restored when returning.</source>
+        <translation>다른 컴퓨터로 보내는 키를 macOS 입력기가 가로채지 않도록 합니다. 돌아오면 이전 입력 소스를 복원합니다.</translation>
+    </message>
+    <message>
+        <source>Use an ASCII input source while controlling another computer (macOS)</source>
+        <translation>다른 컴퓨터 제어 중 ASCII 입력 소스 사용 (macOS)</translation>
+    </message>
+    <message>
+        <source>Emergency return to this Mac: Control + Option + Command + Escape</source>
+        <translation>이 Mac으로 긴급 복귀: Control + Option + Command + Escape</translation>
+    </message>
+    <message>
         <source>Run command on enter</source>
         <translation type="unfinished">Enter 키를 누르면 명령 실행</translation>
     </message>

@@ -321,6 +321,7 @@ private:
   void handleSwitchToScreenEvent(const Event &event);
   void handleSwitchInDirectionEvent(const Event &event);
   void handleToggleScreenEvent(const Event &);
+  void handleReturnToPrimaryEvent();
   void handleKeyboardBroadcastEvent(const Event &event);
   void handleLockCursorToScreenEvent(const Event &event);
 

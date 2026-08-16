@@ -43,6 +43,8 @@ class Mutex;
 //! Implementation of IPlatformScreen for OS X
 class OSXScreen : public PlatformScreen
 {
+  friend class OSXScreenTests;
+
 public:
   OSXScreen(IEventQueue *events, bool isPrimary, bool enableLangSync = false);
 
@@ -158,6 +160,9 @@ private:
   void handleConfirmSleep(const Event &event);
 
   bool checkAXPermissions();
+  static bool isEmergencyReturnKey(CGEventType type, CGKeyCode keyCode, CGEventFlags flags, bool isAutoRepeat);
+  void switchToAsciiInputSource();
+  void restoreInputSource();
 
   // global hotkey operating mode
   static bool isGlobalHotKeyOperatingModeAvailable();
@@ -253,6 +258,7 @@ private:
 
   // keyboard stuff
   OSXKeyState *m_keyState;
+  std::string m_savedInputSourceId;
 
   // clipboards
   OSXClipboard m_pasteboard;
