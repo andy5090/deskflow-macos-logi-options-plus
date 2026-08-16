@@ -836,7 +836,7 @@ void OSXScreen::leave()
     CGAssociateMouseAndMouseCursorPosition(false);
 
     if (Settings::value(Settings::Server::SwitchToAsciiOnLeave).toBool()) {
-      switchToAsciiInputSource();
+      switchToAsciiInputSource(true);
     }
   }
 
@@ -844,12 +844,27 @@ void OSXScreen::leave()
   m_isOnScreen = false;
 }
 
-void OSXScreen::switchToAsciiInputSource()
+bool OSXScreen::shouldEnforceAsciiInputSource(bool isPrimary, bool isOnScreen, bool settingEnabled)
 {
-  if (!m_savedInputSourceId.empty()) {
-    return;
+  return isPrimary && !isOnScreen && settingEnabled;
+}
+
+KeyModifierMask
+OSXScreen::adjustRemoteCapsLockMask(KeyModifierMask oldMask, KeyModifierMask newMask, CGKeyCode keyCode)
+{
+  if (keyCode == kVK_CapsLock) {
+    return (newMask & ~KeyModifierCapsLock) | ((oldMask ^ KeyModifierCapsLock) & KeyModifierCapsLock);
   }
 
+  // Selecting the ASCII input source after Caps Lock produces a synthetic
+  // flags-changed event. macOS may report 0xff or the most recent ordinary
+  // key code for that event, so only the physical Caps key may change the
+  // remote Caps state. Changes to every other modifier still pass through.
+  return (newMask & ~KeyModifierCapsLock) | (oldMask & KeyModifierCapsLock);
+}
+
+void OSXScreen::switchToAsciiInputSource(bool preserveCurrentSource)
+{
   std::lock_guard<std::mutex> lock(g_tisMutex);
   AutoTISInputSourceRef currentSource(TISCopyCurrentKeyboardInputSource(), CFRelease);
   AutoTISInputSourceRef asciiSource(TISCopyCurrentASCIICapableKeyboardInputSource(), CFRelease);
@@ -871,20 +886,21 @@ void OSXScreen::switchToAsciiInputSource()
     return;
   }
 
-  auto savedSourceId = CFStringRefToUTF8String(currentSourceId);
-  if (!savedSourceId) {
-    LOG_WARN("failed to encode macOS input source identifier");
-    return;
+  if (preserveCurrentSource && m_savedInputSourceId.empty()) {
+    auto savedSourceId = CFStringRefToUTF8String(currentSourceId);
+    if (!savedSourceId) {
+      LOG_WARN("failed to encode macOS input source identifier");
+      return;
+    }
+    m_savedInputSourceId = savedSourceId;
+    free(savedSourceId);
   }
 
   if (TISSelectInputSource(asciiSource.get()) != noErr) {
     LOG_WARN("failed to switch to an ASCII-capable macOS input source");
-    free(savedSourceId);
     return;
   }
 
-  m_savedInputSourceId = savedSourceId;
-  free(savedSourceId);
   LOG_DEBUG("switched to an ASCII-capable macOS input source");
 }
 
@@ -1178,6 +1194,16 @@ void OSXScreen::displayReconfigurationCallback(
 bool OSXScreen::onKey(CGEventRef event)
 {
   CGEventType eventKind = CGEventGetType(event);
+  const auto enforceAscii = shouldEnforceAsciiInputSource(
+      m_isPrimary, m_isOnScreen, Settings::value(Settings::Server::SwitchToAsciiOnLeave).toBool()
+  );
+
+  if (enforceAscii) {
+    // Caps Lock can change the macOS input source even while the pointer is on
+    // another computer. Reassert ASCII before decoding every remote key event
+    // so platform-independent clients receive physical ASCII key IDs.
+    switchToAsciiInputSource(false);
+  }
 
   // get the key and active modifiers
   uint32_t virtualKey = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
@@ -1189,6 +1215,9 @@ bool OSXScreen::onKey(CGEventRef event)
     // get old and new modifier state
     KeyModifierMask oldMask = getActiveModifiers();
     KeyModifierMask newMask = m_keyState->mapModifiersFromOSX(macMask);
+    if (enforceAscii) {
+      newMask = adjustRemoteCapsLockMask(oldMask, newMask, static_cast<CGKeyCode>(virtualKey));
+    }
     m_keyState->handleModifierKeys(getEventTarget(), oldMask, newMask);
 
     // if the current set of modifiers exactly matches a modifiers-only
@@ -1248,7 +1277,7 @@ bool OSXScreen::onKey(CGEventRef event)
   // map event to keys
   KeyModifierMask mask;
   OSXKeyState::KeyIDs keys;
-  KeyButton button = m_keyState->mapKeyFromEvent(keys, &mask, event);
+  KeyButton button = m_keyState->mapKeyFromEvent(keys, &mask, event, enforceAscii);
   if (button == 0) {
     return false;
   }

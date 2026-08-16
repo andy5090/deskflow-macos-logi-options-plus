@@ -1,5 +1,6 @@
 /*
  * Deskflow -- mouse and keyboard sharing utility
+ * SPDX-FileCopyrightText: (C) 2026 Deskflow Developers
  * SPDX-FileCopyrightText: (C) 2025 Chris Rizzitello <sithlord48@gmail.com>
  * SPDX-FileCopyrightText: (C) 2012 - 2016 Synergy App Ltd
  * SPDX-FileCopyrightText: (C) 2011 Nick Bolton
@@ -53,6 +54,34 @@ void OSXKeyStateTests::mapModifiersFromOSX_OSXMask()
   uint32_t numMask = 0 | kCGEventFlagMaskNumericPad;
   outMask = keyState.mapModifiersFromOSX(numMask);
   QCOMPARE(outMask, KeyModifierNumLock);
+}
+
+void OSXKeyStateTests::adjustModifiersForRemoteCapsLock_disabled_preservesModifiers()
+{
+  const auto modifiers = static_cast<uint32_t>(shiftKey | alphaLock);
+
+  const auto adjusted = OSXKeyState::adjustModifiersForRemoteCapsLock(modifiers, 0, false);
+
+  QCOMPARE(adjusted, modifiers);
+}
+
+void OSXKeyStateTests::adjustModifiersForRemoteCapsLock_enabledAndActive_addsCapsLock()
+{
+  const auto modifiers = static_cast<uint32_t>(shiftKey | optionKey);
+
+  const auto adjusted =
+      OSXKeyState::adjustModifiersForRemoteCapsLock(modifiers, KeyModifierCapsLock, true);
+
+  QCOMPARE(adjusted, static_cast<uint32_t>(modifiers | alphaLock));
+}
+
+void OSXKeyStateTests::adjustModifiersForRemoteCapsLock_enabledAndInactive_removesCapsLock()
+{
+  const auto modifiers = static_cast<uint32_t>(shiftKey | optionKey | alphaLock);
+
+  const auto adjusted = OSXKeyState::adjustModifiersForRemoteCapsLock(modifiers, 0, true);
+
+  QCOMPARE(adjusted, static_cast<uint32_t>(shiftKey | optionKey));
 }
 
 void OSXKeyStateTests::fakePollShift()

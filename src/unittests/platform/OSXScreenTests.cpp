@@ -36,4 +36,33 @@ void OSXScreenTests::emergencyReturnKey_rejectsIncompleteOrRepeatedChord()
   QVERIFY(!OSXScreen::isEmergencyReturnKey(kCGEventKeyDown, kVK_Return, kEmergencyModifiers, false));
 }
 
+void OSXScreenTests::enforceAsciiInputSource_onlyWhileControllingRemote()
+{
+  QVERIFY(OSXScreen::shouldEnforceAsciiInputSource(true, false, true));
+  QVERIFY(!OSXScreen::shouldEnforceAsciiInputSource(true, true, true));
+  QVERIFY(!OSXScreen::shouldEnforceAsciiInputSource(true, false, false));
+  QVERIFY(!OSXScreen::shouldEnforceAsciiInputSource(false, false, true));
+}
+
+void OSXScreenTests::remoteCapsLockMask_togglesOnlyForPhysicalKey()
+{
+  QCOMPARE(
+      OSXScreen::adjustRemoteCapsLockMask(0, KeyModifierCapsLock, kVK_CapsLock), KeyModifierCapsLock
+  );
+  QCOMPARE(
+      OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, KeyModifierCapsLock, kVK_CapsLock),
+      static_cast<KeyModifierMask>(0)
+  );
+  QCOMPARE(
+      OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, 0, 0xff), KeyModifierCapsLock
+  );
+  QCOMPARE(
+      OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, 0, kVK_ANSI_Period), KeyModifierCapsLock
+  );
+  QCOMPARE(
+      OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, KeyModifierShift, 0xff),
+      static_cast<KeyModifierMask>(KeyModifierCapsLock | KeyModifierShift)
+  );
+}
+
 QTEST_MAIN(OSXScreenTests)
