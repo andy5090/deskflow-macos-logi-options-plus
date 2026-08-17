@@ -174,6 +174,9 @@ enum class EventTypes : uint32_t
   /// This event is sent when button is up. Event data is a pointer to ButtonInfo
   PrimaryScreenButtonUp,
 
+  /// A macOS navigation gesture was matched to a configurable action slot.
+  PrimaryScreenNavigationGesture,
+
   /** This event is sent when mouse moves on the server.
       Event data is a pointer to MotionInfo, the values are absolute position.
   */

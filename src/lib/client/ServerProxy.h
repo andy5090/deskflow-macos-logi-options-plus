@@ -9,6 +9,7 @@
 #pragma once
 
 #include "common/Enums.h"
+#include "common/NavigationTypes.h"
 #include "deskflow/ClipboardChunk.h"
 #include "deskflow/ClipboardTypes.h"
 #include "deskflow/KeyTypes.h"
@@ -94,6 +95,7 @@ private:
   void mouseMove();
   void mouseRelativeMove();
   void mouseWheel();
+  void navigationGesture();
   void screensaver();
   void resetOptions();
   void setOptions();

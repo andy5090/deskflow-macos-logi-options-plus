@@ -94,6 +94,19 @@ void ServerConfigTests::streamOutput_macNavigationGesturesEnabled_serializesTrue
   QVERIFY(QString::fromStdString(stream.str()).contains(QStringLiteral("macNavigationGestures = true")));
 }
 
+void ServerConfigTests::streamOutput_macNavigationGestureMappings_serializeDirections()
+{
+  Config config(nullptr);
+  QVERIFY(config.addOption("", kOptionMacNavigationGestureAction1, 3));
+  QVERIFY(config.addOption("", kOptionMacNavigationGestureAction2, 4));
+
+  std::ostringstream stream;
+  stream << config;
+  const auto output = QString::fromStdString(stream.str());
+  QVERIFY(output.contains(QStringLiteral("macNavigationGestureAction1 = 3")));
+  QVERIFY(output.contains(QStringLiteral("macNavigationGestureAction2 = 4")));
+}
+
 void ServerConfigTests::equalityCheck_diff_alias()
 {
   Config a(nullptr);

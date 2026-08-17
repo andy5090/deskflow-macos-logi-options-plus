@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "common/NavigationTypes.h"
 #include "deskflow/PlatformScreen.h"
 #include "platform/OSXClipboard.h"
 #include "platform/OSXPowerManager.h"
@@ -182,7 +183,14 @@ private:
 
 private:
   static bool navigationGesturesEnabledFromOptions(const OptionsList &options, bool currentValue);
-  static ButtonID classifyNavigationGestureButton(CGEventType type, bool isOnScreen, bool enabled, double deltaX);
+  static void navigationDirectionsFromOptions(
+      const OptionsList &options, NavigationGestureDirection &action1, NavigationGestureDirection &action2
+  );
+  static NavigationGestureDirection
+  classifyNavigationGesture(CGEventType type, bool isOnScreen, bool enabled, double deltaX, double deltaY);
+  static NavigationActionSlot navigationActionSlotForDirection(
+      NavigationGestureDirection direction, NavigationGestureDirection action1, NavigationGestureDirection action2
+  );
 
   struct HotKeyItem
   {
@@ -263,6 +271,8 @@ private:
   bool m_cursorHidden;
 
   bool m_navigationGesturesEnabled = false;
+  NavigationGestureDirection m_navigationGestureAction1 = NavigationGestureDirection::Left;
+  NavigationGestureDirection m_navigationGestureAction2 = NavigationGestureDirection::Right;
 
   // keyboard stuff
   OSXKeyState *m_keyState;

@@ -80,6 +80,10 @@ Server::Server(ServerConfig &config, PrimaryClient *primaryClient, deskflow::Scr
     handleButtonUpEvent(e);
   });
   m_events->addHandler(
+      EventTypes::PrimaryScreenNavigationGesture, m_primaryClient->getEventTarget(),
+      [this](const auto &e) { handleNavigationGestureEvent(e); }
+  );
+  m_events->addHandler(
       EventTypes::PrimaryScreenMotionOnPrimary, m_primaryClient->getEventTarget(),
       [this](const auto &e) { handleMotionPrimaryEvent(e); }
   );
@@ -153,6 +157,7 @@ Server::~Server()
   m_events->removeHandler(KeyStateKeyRepeat, m_inputFilter);
   m_events->removeHandler(PrimaryScreenButtonDown, m_inputFilter);
   m_events->removeHandler(PrimaryScreenButtonUp, m_inputFilter);
+  m_events->removeHandler(PrimaryScreenNavigationGesture, m_primaryClient->getEventTarget());
   m_events->removeHandler(PrimaryScreenMotionOnPrimary, m_primaryClient->getEventTarget());
   m_events->removeHandler(PrimaryScreenMotionOnSecondary, m_primaryClient->getEventTarget());
   m_events->removeHandler(PrimaryScreenWheel, m_primaryClient->getEventTarget());
@@ -1245,6 +1250,12 @@ void Server::handleButtonUpEvent(const Event &event)
   onMouseUp(info->m_button);
 }
 
+void Server::handleNavigationGestureEvent(const Event &event)
+{
+  const auto *info = static_cast<IPlatformScreen::NavigationGestureInfo *>(event.getData());
+  onNavigationGesture(info->m_action);
+}
+
 void Server::handleMotionPrimaryEvent(const Event &event)
 {
   const auto *info = static_cast<IPlatformScreen::MotionInfo *>(event.getData());
@@ -1609,6 +1620,14 @@ void Server::onMouseUp(ButtonID id)
 
   // relay
   m_active->mouseUp(id);
+}
+
+void Server::onNavigationGesture(NavigationActionSlot action)
+{
+  LOG_VERBOSE("onNavigationGesture action=%d", static_cast<int>(action));
+  assert(m_active != nullptr);
+
+  m_active->navigationGesture(action);
 }
 
 bool Server::onMouseMovePrimary(int32_t x, int32_t y)

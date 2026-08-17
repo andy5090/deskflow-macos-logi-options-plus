@@ -82,6 +82,16 @@ void SettingsTests::switchToAsciiOnLeaveDefaultsToFalse()
   QCOMPARE(Settings::defaultValue(Settings::Server::SwitchToAsciiOnLeave).toBool(), false);
 }
 
+void SettingsTests::navigationGestureMappings_haveExpectedDefaults()
+{
+  QCOMPARE(Settings::defaultValue(Settings::Server::MacNavigationGestureAction1).toInt(), 1);
+  QCOMPARE(Settings::defaultValue(Settings::Server::MacNavigationGestureAction2).toInt(), 2);
+  QCOMPARE(Settings::defaultValue(Settings::Client::NavigationGestureAction1).toInt(), 1);
+  QCOMPARE(Settings::defaultValue(Settings::Client::NavigationGestureAction2).toInt(), 2);
+  QCOMPARE(Settings::defaultValue(Settings::Client::NavigationGestureShortcut1).toString(), QString());
+  QCOMPARE(Settings::defaultValue(Settings::Client::NavigationGestureShortcut2).toString(), QString());
+}
+
 void SettingsTests::checkCleanScreenName()
 {
   const auto input = QStringLiteral("--!_ _-S@c#r$e%e^&*(n)= +Name\n[1]2|3?4--5>6<,7`~/8*90\\.lan--..    ..");

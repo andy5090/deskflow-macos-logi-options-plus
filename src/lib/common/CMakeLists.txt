@@ -17,6 +17,7 @@ add_library(common STATIC
   I18N.cpp
   LogLevel.h
   NetworkProtocol.h
+  NavigationTypes.h
   PlatformInfo.h
   Settings.h
   Settings.cpp

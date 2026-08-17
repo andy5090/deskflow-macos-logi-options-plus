@@ -23,6 +23,7 @@ private Q_SLOTS:
   void tlsTrustedClientsDb();
   void checkValidSettings();
   void switchToAsciiOnLeaveDefaultsToFalse();
+  void navigationGestureMappings_haveExpectedDefaults();
   void checkCleanScreenName();
   void checkCleanScreenName_LongName();
 

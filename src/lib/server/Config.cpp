@@ -471,6 +471,12 @@ void Config::readSectionOptions(ConfigReadContext &s)
   addOption("", kOptionClipboardSharing, Settings::value(Settings::Server::EnableClipboard).toBool());
   addOption("", kOptionClipboardSharingSize, Settings::value(Settings::Server::ClipboardSize).toUInt() * 1024);
   addOption("", kOptionMacNavigationGestures, Settings::value(Settings::Server::MacNavigationGesturesEnabled).toBool());
+  addOption(
+      "", kOptionMacNavigationGestureAction1, Settings::value(Settings::Server::MacNavigationGestureAction1).toInt()
+  );
+  addOption(
+      "", kOptionMacNavigationGestureAction2, Settings::value(Settings::Server::MacNavigationGestureAction2).toInt()
+  );
 
   if (const auto address = Settings::value(Settings::Core::Interface).toString(); !address.isEmpty()) {
     m_deskflowAddress = NetworkAddress(address.toStdString(), Settings::value(Settings::Core::Port).toInt());
@@ -1056,6 +1062,12 @@ const char *Config::getOptionName(OptionID id)
   if (id == kOptionMacNavigationGestures) {
     return "macNavigationGestures";
   }
+  if (id == kOptionMacNavigationGestureAction1) {
+    return "macNavigationGestureAction1";
+  }
+  if (id == kOptionMacNavigationGestureAction2) {
+    return "macNavigationGestureAction2";
+  }
   return nullptr;
 }
 
@@ -1094,7 +1106,8 @@ std::string Config::getOptionValue(OptionID id, OptionValue value)
     }
   }
   if (id == kOptionHeartbeat || id == kOptionScreenSwitchCornerSize || id == kOptionScreenSwitchDelay ||
-      id == kOptionScreenSwitchTwoTap) {
+      id == kOptionScreenSwitchTwoTap || id == kOptionMacNavigationGestureAction1 ||
+      id == kOptionMacNavigationGestureAction2) {
     return deskflow::string::sprintf("%d", value);
   }
   if (id == kOptionScreenSwitchCorners) {

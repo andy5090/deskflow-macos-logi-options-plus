@@ -6,6 +6,7 @@
 
 #include "OSXScreenTests.h"
 
+#include "common/NavigationTypes.h"
 #include "platform/OSXScreen.h"
 
 namespace {
@@ -96,34 +97,108 @@ void OSXScreenTests::navigationGesturesEnabledFromOptions_malformedOptions_prese
   QVERIFY(OSXScreen::navigationGesturesEnabledFromOptions(malformed, true));
 }
 
-void OSXScreenTests::classifyNavigationGestureButton_swipeLeft_returnsExtra0()
+void OSXScreenTests::classifyNavigationGesture_swipeLeft_returnsLeft()
 {
-  QCOMPARE(OSXScreen::classifyNavigationGestureButton(kGestureType, false, true, 1.0), kButtonExtra0);
+  QCOMPARE(
+      OSXScreen::classifyNavigationGesture(kGestureType, false, true, 1.0, 0.0),
+      NavigationGestureDirection::Left
+  );
 }
 
-void OSXScreenTests::classifyNavigationGestureButton_swipeRight_returnsExtra1()
+void OSXScreenTests::classifyNavigationGesture_swipeRight_returnsRight()
 {
-  QCOMPARE(OSXScreen::classifyNavigationGestureButton(kGestureType, false, true, -1.0), kButtonExtra1);
+  QCOMPARE(
+      OSXScreen::classifyNavigationGesture(kGestureType, false, true, -1.0, 0.0),
+      NavigationGestureDirection::Right
+  );
 }
 
-void OSXScreenTests::classifyNavigationGestureButton_disabled_returnsNone()
+void OSXScreenTests::classifyNavigationGesture_swipeUp_returnsUp()
 {
-  QCOMPARE(OSXScreen::classifyNavigationGestureButton(kGestureType, false, false, 1.0), kButtonNone);
+  QCOMPARE(
+      OSXScreen::classifyNavigationGesture(kGestureType, false, true, 0.0, 1.0), NavigationGestureDirection::Up
+  );
 }
 
-void OSXScreenTests::classifyNavigationGestureButton_localScreen_returnsNone()
+void OSXScreenTests::classifyNavigationGesture_swipeDown_returnsDown()
 {
-  QCOMPARE(OSXScreen::classifyNavigationGestureButton(kGestureType, true, true, 1.0), kButtonNone);
+  QCOMPARE(
+      OSXScreen::classifyNavigationGesture(kGestureType, false, true, 0.0, -1.0), NavigationGestureDirection::Down
+  );
 }
 
-void OSXScreenTests::classifyNavigationGestureButton_nonGestureEvent_returnsNone()
+void OSXScreenTests::classifyNavigationGesture_ambiguousDelta_returnsNone()
 {
-  QCOMPARE(OSXScreen::classifyNavigationGestureButton(kCGEventScrollWheel, false, true, 1.0), kButtonNone);
+  QCOMPARE(
+      OSXScreen::classifyNavigationGesture(kGestureType, false, true, 1.0, 1.0), NavigationGestureDirection::None
+  );
 }
 
-void OSXScreenTests::classifyNavigationGestureButton_zeroDelta_returnsNone()
+void OSXScreenTests::classifyNavigationGesture_disabled_returnsNone()
 {
-  QCOMPARE(OSXScreen::classifyNavigationGestureButton(kGestureType, false, true, 0.0), kButtonNone);
+  QCOMPARE(
+      OSXScreen::classifyNavigationGesture(kGestureType, false, false, 1.0, 0.0),
+      NavigationGestureDirection::None
+  );
+}
+
+void OSXScreenTests::classifyNavigationGesture_localScreen_returnsNone()
+{
+  QCOMPARE(
+      OSXScreen::classifyNavigationGesture(kGestureType, true, true, 1.0, 0.0), NavigationGestureDirection::None
+  );
+}
+
+void OSXScreenTests::classifyNavigationGesture_nonGestureEvent_returnsNone()
+{
+  QCOMPARE(
+      OSXScreen::classifyNavigationGesture(kCGEventScrollWheel, false, true, 1.0, 0.0),
+      NavigationGestureDirection::None
+  );
+}
+
+void OSXScreenTests::classifyNavigationGesture_zeroDelta_returnsNone()
+{
+  QCOMPARE(
+      OSXScreen::classifyNavigationGesture(kGestureType, false, true, 0.0, 0.0), NavigationGestureDirection::None
+  );
+}
+
+void OSXScreenTests::navigationActionSlotForDirection_configuredDirections_returnsSlots()
+{
+  QCOMPARE(
+      OSXScreen::navigationActionSlotForDirection(
+          NavigationGestureDirection::Up, NavigationGestureDirection::Up, NavigationGestureDirection::Down
+      ),
+      NavigationActionSlot::Action1
+  );
+  QCOMPARE(
+      OSXScreen::navigationActionSlotForDirection(
+          NavigationGestureDirection::Down, NavigationGestureDirection::Up, NavigationGestureDirection::Down
+      ),
+      NavigationActionSlot::Action2
+  );
+  QCOMPARE(
+      OSXScreen::navigationActionSlotForDirection(
+          NavigationGestureDirection::Left, NavigationGestureDirection::Up, NavigationGestureDirection::Down
+      ),
+      NavigationActionSlot::None
+  );
+}
+
+void OSXScreenTests::navigationDirectionsFromOptions_configuredOptions_returnsDirections()
+{
+  const OptionsList options = {
+      kOptionMacNavigationGestureAction1, static_cast<uint32_t>(NavigationGestureDirection::Up),
+      kOptionMacNavigationGestureAction2, static_cast<uint32_t>(NavigationGestureDirection::Down)
+  };
+
+  auto action1 = NavigationGestureDirection::Left;
+  auto action2 = NavigationGestureDirection::Right;
+  OSXScreen::navigationDirectionsFromOptions(options, action1, action2);
+
+  QCOMPARE(action1, NavigationGestureDirection::Up);
+  QCOMPARE(action2, NavigationGestureDirection::Down);
 }
 
 QTEST_MAIN(OSXScreenTests)

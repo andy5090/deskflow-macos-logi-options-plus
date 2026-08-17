@@ -43,6 +43,10 @@ public:
     inline static const auto YScrollScale = QStringLiteral("client/yScrollScale");
     inline static const auto XScrollScale = QStringLiteral("client/xScrollScale");
     inline static const auto LanguageSync = QStringLiteral("client/languageSync");
+    inline static const auto NavigationGestureAction1 = QStringLiteral("client/navigationGestureAction1");
+    inline static const auto NavigationGestureAction2 = QStringLiteral("client/navigationGestureAction2");
+    inline static const auto NavigationGestureShortcut1 = QStringLiteral("client/navigationGestureShortcut1");
+    inline static const auto NavigationGestureShortcut2 = QStringLiteral("client/navigationGestureShortcut2");
     inline static const auto RemoteHost = QStringLiteral("client/remoteHost");
     inline static const auto XdpRestoreToken = QStringLiteral("client/xdpRestoreToken");
   };
@@ -111,6 +115,8 @@ public:
     inline static const auto EnableClipboard = QStringLiteral("server/enableClipboard");
     inline static const auto EnableHeatbeat = QStringLiteral("server/enableHeatbeat");
     inline static const auto MacNavigationGesturesEnabled = QStringLiteral("server/macNavigationGesturesEnabled");
+    inline static const auto MacNavigationGestureAction1 = QStringLiteral("server/macNavigationGestureAction1");
+    inline static const auto MacNavigationGestureAction2 = QStringLiteral("server/macNavigationGestureAction2");
     inline static const auto EnableSwitchDelay = QStringLiteral("server/enableSwitchDelay");
     inline static const auto EnableSwitchDoubleTap = QStringLiteral("server/enableSwitchDoubleTap");
     inline static const auto ExternalConfig = QStringLiteral("server/externalConfig");
@@ -261,6 +267,10 @@ private:
     , Client::InvertYScroll
     , Client::InvertXScroll
     , Client::LanguageSync
+    , Client::NavigationGestureAction1
+    , Client::NavigationGestureAction2
+    , Client::NavigationGestureShortcut1
+    , Client::NavigationGestureShortcut2
     , Client::RemoteHost
     , Client::YScrollScale
     , Client::XScrollScale
@@ -309,6 +319,8 @@ private:
     , Server::EnableClipboard
     , Server::EnableHeatbeat
     , Server::MacNavigationGesturesEnabled
+    , Server::MacNavigationGestureAction1
+    , Server::MacNavigationGestureAction2
     , Server::EnableSwitchDelay
     , Server::EnableSwitchDoubleTap
     , Server::ExternalConfig

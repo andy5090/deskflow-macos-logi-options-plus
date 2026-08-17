@@ -168,6 +168,7 @@ This table lists all protocol messages in alphabetical order. For a typical sequ
 | [**DMUP**](@ref kMsgDMouseUp) | @ref kMsgDMouseUp | Data | Server→Client | Mouse up | [MsgSize](#constraint-protocol-max-message-length) | 1.0+ |
 | [**DMWM**](@ref kMsgDMouseWheel) | @ref kMsgDMouseWheel | Data | Server→Client | Mouse wheel | [MsgSize](#constraint-protocol-max-message-length) | 1.3+ |
 | [**DMWM**](@ref kMsgDMouseWheel1_0) | @ref kMsgDMouseWheel1_0 | Data | Server→Client | Mouse wheel (legacy) | [MsgSize](#constraint-protocol-max-message-length) | 1.0-1.2 |
+| [**DNGS**](@ref kMsgDNavigationGesture) | @ref kMsgDNavigationGesture | Data | Server→Client | Configurable navigation action | [MsgSize](#constraint-protocol-max-message-length) | 1.9+ |
 | [**DSOP**](@ref kMsgDSetOptions) | @ref kMsgDSetOptions | Data | Server→Client | Set options | [MsgSize](#constraint-protocol-max-message-length), [ListSize](#constraint-max-list) | 1.0+ |
 | [**EBAD**](@ref kMsgEBad) | @ref kMsgEBad | Error | Server→Client | Protocol violation | [MsgSize](#constraint-protocol-max-message-length) | 1.0+ |
 | [**EBSY**](@ref kMsgEBusy) | @ref kMsgEBusy | Error | Server→Client | Server busy | [MsgSize](#constraint-protocol-max-message-length) | 1.0+ |
@@ -290,6 +291,7 @@ A modifier (modifier mask) represents the state of modifier keys (like Shift, Co
 | **1.6** | Jan 2014 | Synergy | Clipboard streaming | 1.6+ |
 | **1.7** | Nov 2021 | Synergy | Secure input notifications | 1.7+ |
 | **1.8** | Jun 2025 | Synergy | Language synchronization | 1.8+ |
+| **1.9** | Aug 2026 | Deskflow macOS Logi Options+ fork | Configurable navigation actions | 1.9+ |
 
 ### Version Migration Guide
 
@@ -315,7 +317,7 @@ std::string server_version, server_name;
 parse_hello(hello, &server_version, &server_name);
 
 // 3. Send HelloBack to server
-std::string client_version = "1.8";
+std::string client_version = "1.9";
 std::string client_name = "MyClient";
 send_hello_back(client_version, client_name);
 
@@ -368,7 +370,7 @@ Client                                 Server
   |                                      | TCP connection established
   |                                      |
   | ◄─────────────────────────────────── |
-  | "Deskflow" + version (1.8)           | Hello message
+  | "Deskflow" + version (1.9)           | Hello message
   |                                      |
   | "Deskflow" + version + name          |
   | ───────────────────────────────────► | HelloBack message

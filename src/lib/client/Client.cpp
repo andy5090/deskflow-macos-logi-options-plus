@@ -309,6 +309,11 @@ void Client::mouseWheel(int32_t xDelta, int32_t yDelta)
   m_screen->mouseWheel(xDelta, yDelta);
 }
 
+void Client::navigationGesture(NavigationActionSlot action)
+{
+  m_screen->navigationGesture(action);
+}
+
 void Client::screensaver(bool activate)
 {
   m_screen->screensaver(activate);
