@@ -608,8 +608,12 @@ void *ArchMultithreadPosix::threadFunc(void *vrep)
   auto *thread = static_cast<ArchThreadImpl *>(vrep);
 
   // setup pthreads
+#if !defined(__ANDROID__)
+  // Bionic does not implement POSIX pthread cancellation. Deskflow uses its
+  // own signal-and-exception cancellation path, so no setup is needed there.
   pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, nullptr);
   pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, nullptr);
+#endif
 
   // run thread
   s_instance->doThreadFunc(thread);

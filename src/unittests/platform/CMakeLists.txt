@@ -32,6 +32,16 @@ elseif(APPLE)
     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/src/lib/platform"
   )
 elseif(UNIX)
+  if(BUILD_ADB_CLIENT_SUPPORT)
+    create_test(
+      NAME AdbKeyStateTests
+      DEPENDS platform
+      LIBS base arch
+      SOURCE AdbKeyStateTests.cpp
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/src/lib/platform"
+    )
+  endif()
+
   if(LIBEI_FOUND)
     create_test(
       NAME EiKeyStateTests

@@ -39,11 +39,15 @@ target_link_libraries(
   Qt6::Widgets
   ${libs})
 
-install(
-  TARGETS ${target}
-  RUNTIME_DEPENDENCY_SET coreDeps
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
+if(ANDROID)
+  install(TARGETS ${target} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+else()
+  install(
+    TARGETS ${target}
+    RUNTIME_DEPENDENCY_SET coreDeps
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  )
+endif()
 
 if(BUILD_OSX_BUNDLE)
   set_target_properties(${target} PROPERTIES

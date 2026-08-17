@@ -411,6 +411,7 @@ deskflow::Screen *ServerApp::createScreen()
       getEvents()
   );
 #endif
+  throw ScreenOpenFailureException{};
 #endif // end os check
 }
 

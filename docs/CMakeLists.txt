@@ -15,6 +15,7 @@ add_custom_target(docs ALL
     HelpMain.md
     Configuration.md
     Issues.md
+    termux-dex.md
 )
 
 install(
@@ -24,6 +25,7 @@ install(
     Configuration.md
     Issues.md
     Security.md
+    termux-dex.md
   DESTINATION ${CMAKE_INSTALL_DOCDIR}
 )
 
@@ -43,4 +45,3 @@ add_custom_command(
       ${CMAKE_CURRENT_SOURCE_DIR}/Security.md
       ${CMAKE_CURRENT_BINARY_DIR}/Security.md
 )
-

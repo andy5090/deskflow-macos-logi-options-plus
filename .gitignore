@@ -5,6 +5,7 @@
 
 # temp dirs created during build
 /build
+/build-*
 /dist
 /deps
 /tmp
@@ -43,8 +44,9 @@ CMakeFiles/*
 # vscode folder
 /.vscode
 
-# scripts folder
-/scripts
+# scripts folder (except maintained project scripts)
+/scripts/*
+!/scripts/build-termux-adb.sh
 
 # Ai helperfilers
 **/[cC]laude.[mM][dD]

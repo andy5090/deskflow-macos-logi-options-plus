@@ -19,6 +19,7 @@
 #include "deskflow/ScreenException.h"
 #include "deskflow/ipc/CoreIpc.h"
 #include "net/NetworkAddress.h"
+#include "net/SecureUtils.h"
 #include "net/SocketException.h"
 #include "net/SocketMultiplexer.h"
 #include "net/TCPSocketFactory.h"
@@ -27,6 +28,7 @@
 #include "platform/MSWindowsScreen.h"
 #endif
 
+#include <QDir>
 #include <QFileInfo> // Must include before XWindowsScreen to avoid conflicts with xlib.h
 
 #if WINAPI_XWINDOWS
@@ -37,11 +39,32 @@
 #include "platform/EiScreen.h"
 #endif
 
+#if WINAPI_ADB
+#include "platform/AdbScreen.h"
+#endif
+
 #if defined(Q_OS_MAC)
 #include "platform/OSXScreen.h"
 #endif
 
+#include <algorithm>
 #include <memory>
+
+#if WINAPI_ADB
+namespace {
+
+bool useAdbInputBackend()
+{
+  const QString inputBackend = qEnvironmentVariable("DESKFLOW_INPUT_BACKEND");
+  bool useAdbBackend = inputBackend.compare(QStringLiteral("adb"), Qt::CaseInsensitive) == 0;
+#if defined(Q_OS_ANDROID)
+  useAdbBackend = useAdbBackend || inputBackend.isEmpty();
+#endif
+  return useAdbBackend;
+}
+
+} // namespace
+#endif
 
 ClientApp::ClientApp(IEventQueue *events, const QString &processName) : App(events, processName)
 {
@@ -113,6 +136,12 @@ deskflow::Screen *ClientApp::createScreen()
       new OSXScreen(getEvents(), false, Settings::value(Settings::Client::LanguageSync).toBool()), getEvents()
   );
 #else
+#if WINAPI_ADB
+  if (useAdbInputBackend()) {
+    LOG_INFO("using Android ADB screen");
+    return new deskflow::Screen(new deskflow::AdbScreen(getEvents()), getEvents());
+  }
+#endif
   if (deskflow::platform::isWayland()) {
 #if WINAPI_LIBEI
     LOG_INFO("using ei screen for wayland");
@@ -128,6 +157,7 @@ deskflow::Screen *ClientApp::createScreen()
       getEvents()
   );
 #endif
+  throw ScreenOpenFailureException{};
 #endif // end os check
 }
 
@@ -272,6 +302,29 @@ void ClientApp::closeClient(Client *client)
 
 bool ClientApp::startClient()
 {
+#if WINAPI_ADB
+  if (useAdbInputBackend() && Settings::value(Settings::Security::TlsEnabled).toBool()) {
+    const QString certificate = Settings::value(Settings::Security::Certificate).toString();
+    const QFileInfo certificateInfo(certificate);
+    if (!certificateInfo.exists()) {
+      QDir certificateDir(certificateInfo.absolutePath());
+      if (!certificateDir.exists() && !certificateDir.mkpath(QStringLiteral("."))) {
+        LOG_CRIT("failed to create Android client TLS directory: %s", qPrintable(certificateInfo.absolutePath()));
+        return false;
+      }
+
+      try {
+        const int keySize = std::max(2048, Settings::value(Settings::Security::KeySize).toInt());
+        deskflow::generatePemSelfSignedCert(certificate, keySize);
+        LOG_INFO("generated Android client TLS certificate: %s", qPrintable(certificate));
+      } catch (const std::exception &error) {
+        LOG_CRIT("failed to generate Android client TLS certificate: %s", error.what());
+        return false;
+      }
+    }
+  }
+#endif
+
   deskflow::Screen *clientScreen = nullptr;
   try {
     if (m_clientScreen == nullptr) {

@@ -34,10 +34,18 @@ The navigation feature has been manually tested with a macOS server and both Lin
 
 This fork is intended to remain close to upstream Deskflow. Features may be proposed upstream after broader testing and, where necessary, a more general design.
 
+## Experimental Termux and Samsung DeX client
+
+The `android-termux-dex` branch adds a headless Termux client that controls the
+Android or Samsung DeX display through a local wireless-ADB input bridge. It
+does not install an Android APK. See the [Termux and DeX client guide](docs/termux-dex.md)
+for the architecture, security tradeoffs, build steps, and current limitations.
+
 ## Branches
 
 - `master` tracks upstream Deskflow without fork-specific changes.
 - `macos-logi-options-plus` is the default branch for this fork and contains the macOS improvements.
+- `android-termux-dex` experiments with an APK-free Termux/DeX client.
 - Future upstream contributions will use clean `contrib/*` branches created from the latest upstream branch.
 
 ## Building

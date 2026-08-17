@@ -49,12 +49,16 @@ target_link_libraries(
   Qt6::Widgets
   Qt6::Network)
 
-install(
-  TARGETS ${target}
-  RUNTIME_DEPENDENCY_SET guiDeps
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  BUNDLE DESTINATION .
-)
+if(ANDROID)
+  install(TARGETS ${target} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+else()
+  install(
+    TARGETS ${target}
+    RUNTIME_DEPENDENCY_SET guiDeps
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    BUNDLE DESTINATION .
+  )
+endif()
 
 if(WIN32)
   set_target_properties(${target} PROPERTIES LINK_FLAGS "/NODEFAULTLIB:LIBCMT")
