@@ -430,6 +430,7 @@ void Server::switchScreen(BaseClientProxy *dst, int32_t x, int32_t y, bool forSc
 
   // stop waiting to switch
   stopSwitch();
+  resetRelativeMoveExitValidation();
 
   // record new position
   m_x = x;
@@ -869,6 +870,14 @@ void Server::stopSwitch()
   }
 }
 
+void Server::resetRelativeMoveExitValidation()
+{
+  m_relativeMoveExitQueryClient = nullptr;
+  m_relativeMoveExitQueryDirection = Direction::NoDirection;
+  m_relativeMoveExitArmedClient = nullptr;
+  m_relativeMoveExitArmedDirection = Direction::NoDirection;
+}
+
 void Server::startSwitchTwoTap()
 {
   m_switchTwoTapEngaged = true;
@@ -1134,6 +1143,47 @@ void Server::handleShapeChanged(BaseClientProxy *client)
   int32_t y;
   client->getCursorPos(x, y);
   client->setJumpCursorPos(x, y);
+
+  if (client == m_relativeMoveExitQueryClient) {
+    int32_t sx;
+    int32_t sy;
+    int32_t sw;
+    int32_t sh;
+    client->getShape(sx, sy, sw, sh);
+    constexpr int32_t edgeTolerance = 3;
+    bool atRequestedEdge = false;
+    switch (m_relativeMoveExitQueryDirection) {
+    case Direction::Left:
+      atRequestedEdge = x <= sx + edgeTolerance;
+      break;
+    case Direction::Right:
+      atRequestedEdge = x >= sx + sw - 1 - edgeTolerance;
+      break;
+    case Direction::Top:
+      atRequestedEdge = y <= sy + edgeTolerance;
+      break;
+    case Direction::Bottom:
+      atRequestedEdge = y >= sy + sh - 1 - edgeTolerance;
+      break;
+    case Direction::NoDirection:
+      break;
+    }
+
+    if (atRequestedEdge) {
+      m_relativeMoveExitArmedClient = client;
+      m_relativeMoveExitArmedDirection = m_relativeMoveExitQueryDirection;
+      LOG_VERBOSE(
+          "relative cursor reached the %s edge of \"%s\"", Config::dirName(m_relativeMoveExitQueryDirection),
+          getName(client).c_str()
+      );
+    } else {
+      m_relativeMoveExitArmedClient = nullptr;
+      m_relativeMoveExitArmedDirection = Direction::NoDirection;
+      LOG_VERBOSE("resynced relative cursor on \"%s\" to %d,%d", getName(client).c_str(), x, y);
+    }
+    m_relativeMoveExitQueryClient = nullptr;
+    m_relativeMoveExitQueryDirection = Direction::NoDirection;
+  }
 
   // update the mouse coordinates
   if (client == m_active) {
@@ -1734,6 +1784,30 @@ void Server::onMouseMoveSecondary(int32_t dx, int32_t dy)
 
   const bool relativeMoves = m_relativeMoves || m_active->requiresRelativeMouseMoves();
 
+  if (m_relativeMoveExitArmedClient == m_active) {
+    bool movingAway = false;
+    switch (m_relativeMoveExitArmedDirection) {
+    case Direction::Left:
+      movingAway = dx > 0;
+      break;
+    case Direction::Right:
+      movingAway = dx < 0;
+      break;
+    case Direction::Top:
+      movingAway = dy > 0;
+      break;
+    case Direction::Bottom:
+      movingAway = dy < 0;
+      break;
+    case Direction::NoDirection:
+      break;
+    }
+    if (movingAway) {
+      m_relativeMoveExitArmedClient = nullptr;
+      m_relativeMoveExitArmedDirection = Direction::NoDirection;
+    }
+  }
+
   // When locked, preserve the game-oriented relative mode: forward deltas
   // without changing Deskflow's logical cursor position.
   if (relativeMoves && isLockedToScreenServer()) {
@@ -1767,6 +1841,7 @@ void Server::onMouseMoveSecondary(int32_t dx, int32_t dy)
 
   // find direction of neighbor and get the neighbor
   bool jump = true;
+  bool requestRelativeCursorPosition = false;
   BaseClientProxy *newScreen;
   do {
     // clamp position to screen
@@ -1838,6 +1913,30 @@ void Server::onMouseMoveSecondary(int32_t dx, int32_t dy)
     // try to switch screen.  get the neighbor.
     newScreen = mapToNeighbor(m_active, dir, m_x, m_y);
 
+    // Android UHID applies pointer acceleration after receiving raw deltas, so
+    // its visible cursor can lag behind Deskflow's logical edge. Before leaving
+    // a relative-only client, forward the crossing delta and ask for the real
+    // cursor position. A subsequent outward delta may switch only after that
+    // position has been confirmed at the same edge.
+    if (m_active->requiresRelativeMouseMoves() && newScreen != nullptr) {
+      const bool exitArmed = m_relativeMoveExitArmedClient == m_active && m_relativeMoveExitArmedDirection == dir;
+      if (exitArmed) {
+        m_relativeMoveExitArmedClient = nullptr;
+        m_relativeMoveExitArmedDirection = NoDirection;
+      } else {
+        newScreen = m_active;
+        jump = false;
+        if (m_relativeMoveExitQueryClient == nullptr) {
+          m_relativeMoveExitQueryClient = m_active;
+          m_relativeMoveExitQueryDirection = dir;
+          m_relativeMoveExitArmedClient = nullptr;
+          m_relativeMoveExitArmedDirection = NoDirection;
+          requestRelativeCursorPosition = true;
+        }
+        break;
+      }
+    }
+
     // see if we should switch
     if (!isSwitchOkay(newScreen, dir, m_x, m_y, xc, yc)) {
       newScreen = m_active;
@@ -1877,6 +1976,9 @@ void Server::onMouseMoveSecondary(int32_t dx, int32_t dy)
     if (relativeMoves) {
       LOG_VERBOSE("relative move on %s by %d,%d", getName(m_active).c_str(), dx, dy);
       m_active->mouseRelativeMove(dx, dy);
+      if (requestRelativeCursorPosition) {
+        m_active->requestCursorPosition();
+      }
     } else if (m_x != xOld || m_y != yOld) {
       LOG_VERBOSE("move on %s to %d,%d", getName(m_active).c_str(), m_x, m_y);
       m_active->mouseMove(m_x, m_y);
@@ -1934,6 +2036,10 @@ bool Server::removeClient(BaseClientProxy *client)
   ClientSet::iterator i = m_clientSet.find(client);
   if (i == m_clientSet.end()) {
     return false;
+  }
+
+  if (client == m_relativeMoveExitQueryClient || client == m_relativeMoveExitArmedClient) {
+    resetRelativeMoveExitValidation();
   }
 
   // remove event handlers

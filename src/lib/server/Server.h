@@ -297,6 +297,9 @@ private:
   // stop relative mouse moves
   void stopRelativeMoves();
 
+  // reset Android-style relative cursor edge validation state
+  void resetRelativeMoveExitValidation();
+
   // send screen options to \c client
   void sendOptions(BaseClientProxy *client) const;
 
@@ -452,6 +455,13 @@ private:
   // common state for screen switch tests.  all tests are always
   // trying to reach the same screen in the same direction.
   Direction m_switchDir = Direction::NoDirection;
+
+  // Relative-only clients can apply their own pointer acceleration. Before
+  // leaving one, compare the visible client cursor with the logical position.
+  BaseClientProxy *m_relativeMoveExitQueryClient = nullptr;
+  Direction m_relativeMoveExitQueryDirection = Direction::NoDirection;
+  BaseClientProxy *m_relativeMoveExitArmedClient = nullptr;
+  Direction m_relativeMoveExitArmedDirection = Direction::NoDirection;
 
   bool m_switchTwoTapEngaged = false;
   bool m_switchTwoTapArmed = false;

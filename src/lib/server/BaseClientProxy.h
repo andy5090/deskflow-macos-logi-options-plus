@@ -52,6 +52,10 @@ public:
     return m_requiresRelativeMouseMoves;
   }
 
+  virtual void requestCursorPosition()
+  {
+  }
+
   //! Get cursor position
   /*!
   Return if this proxy is for client or primary.

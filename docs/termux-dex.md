@@ -191,6 +191,10 @@ The cursor stops before reaching the right or bottom edge
   Lock. The Android backend also advertises this requirement in its screen-info
   capabilities, so it works for any client name and for multiple Termux/DeX
   clients even when an external server configuration overrides the GUI setting.
+  Before switching away from a relative-only client, the server asks for the
+  visible DeX cursor position and leaves only after the physical edge is
+  confirmed. This prevents Android pointer acceleration from causing an early
+  return to the server while the visible cursor is still far from the edge.
 
 The client is killed in the background
 

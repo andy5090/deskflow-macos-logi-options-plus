@@ -69,6 +69,16 @@ void AdbScreen::getShape(int32_t &x, int32_t &y, int32_t &width, int32_t &height
 
 void AdbScreen::getCursorPos(int32_t &x, int32_t &y) const
 {
+  if (m_isOnScreen && m_bridge.relativeMouse()) {
+    int32_t actualX = 0;
+    int32_t actualY = 0;
+    if (m_bridge.queryCursorPosition(actualX, actualY)) {
+      m_cursorX = clampedX(actualX);
+      m_cursorY = clampedY(actualY);
+    } else {
+      LOG_DEBUG("Android cursor position was unavailable for edge validation");
+    }
+  }
   x = m_cursorX;
   y = m_cursorY;
 }
