@@ -13,6 +13,8 @@
 #include <QFileInfo>
 #include <QRegularExpression>
 
+#include <cmath>
+
 #ifndef DESKFLOW_ADB_BRIDGE_PATH
 #define DESKFLOW_ADB_BRIDGE_PATH ""
 #endif
@@ -32,6 +34,16 @@ AdbInputBridge::AdbInputBridge()
   if (m_keyboardMode != QStringLiteral("uhid") && m_keyboardMode != QStringLiteral("sdk")) {
     LOG_WARN("unknown Android keyboard mode '%s'; using uhid", qPrintable(m_keyboardMode));
     m_keyboardMode = QStringLiteral("uhid");
+  }
+  const QString configuredScale = qEnvironmentVariable("DESKFLOW_ANDROID_MOUSE_SCALE").trimmed();
+  if (!configuredScale.isEmpty()) {
+    bool ok = false;
+    const double scale = configuredScale.toDouble(&ok);
+    if (ok && std::isfinite(scale) && scale >= 0.1 && scale <= 10.0) {
+      m_mouseScale = scale;
+    } else {
+      LOG_WARN("invalid Android mouse scale '%s'; using 1.0", qPrintable(configuredScale));
+    }
   }
   bool ok = false;
   const int configuredDisplay = qEnvironmentVariableIntValue("DESKFLOW_ANDROID_DISPLAY_ID", &ok);
@@ -178,8 +190,8 @@ bool AdbInputBridge::start()
   }
 
   LOG_INFO(
-      "Android ADB input bridge ready (display=%d, size=%dx%d, mouse=%s, keyboard=%s)", m_displayId,
-      static_cast<int>(m_width), static_cast<int>(m_height), m_relativeMouse ? "uhid" : "sdk",
+      "Android ADB input bridge ready (display=%d, size=%dx%d, mouse=%s, mouse-scale=%.2f, keyboard=%s)", m_displayId,
+      static_cast<int>(m_width), static_cast<int>(m_height), m_relativeMouse ? "uhid" : "sdk", m_mouseScale,
       m_uhidKeyboard ? "uhid" : "sdk"
   );
   return true;
@@ -233,7 +245,80 @@ void AdbInputBridge::sendMouseMove(int32_t x, int32_t y) const
 
 void AdbInputBridge::sendMouseRelativeMove(int32_t dx, int32_t dy) const
 {
-  sendLine(QByteArrayLiteral("R ") + QByteArray::number(dx) + ' ' + QByteArray::number(dy) + '\n');
+  const auto scaledDelta = [this](int32_t delta, double &remainder) {
+    if (delta == 0) {
+      return int32_t{0};
+    }
+    const double value = static_cast<double>(delta) * m_mouseScale + remainder;
+    const auto scaled = static_cast<int32_t>(value);
+    remainder = value - static_cast<double>(scaled);
+    return scaled;
+  };
+  const int32_t scaledX = scaledDelta(dx, m_mouseRemainderX);
+  const int32_t scaledY = scaledDelta(dy, m_mouseRemainderY);
+  if (scaledX != 0 || scaledY != 0) {
+    sendLine(QByteArrayLiteral("R ") + QByteArray::number(scaledX) + ' ' + QByteArray::number(scaledY) + '\n');
+  }
+}
+
+bool AdbInputBridge::queryCursorPosition(int32_t &x, int32_t &y) const
+{
+  QByteArray output;
+  if (!runAdb({QStringLiteral("shell"), QStringLiteral("dumpsys"), QStringLiteral("SurfaceFlinger")}, &output)) {
+    return false;
+  }
+
+  // Samsung DeX exposes the hardware cursor rectangle in the SurfaceFlinger
+  // layer table. Its top-left corner is the pointer hot spot on current One UI
+  // releases. Keep this best-effort: other Android vendors may omit the row.
+  static const QRegularExpression cursorPattern{
+      QStringLiteral("\\|\\s*CURSOR\\s*\\|[^\\n]*?\\|\\s*(-?\\d+)\\s+(-?\\d+)\\s+-?\\d+\\s+-?\\d+\\s*\\|")
+  };
+  const auto match = cursorPattern.match(QString::fromUtf8(output));
+  if (!match.hasMatch()) {
+    return false;
+  }
+
+  x = match.captured(1).toInt();
+  y = match.captured(2).toInt();
+  return true;
+}
+
+bool AdbInputBridge::syncMousePosition(int32_t x, int32_t y) const
+{
+  if (!m_relativeMouse) {
+    return false;
+  }
+
+  // A UHID mouse is relative, so it retains its previous Android position
+  // when Deskflow enters the client at an absolute edge coordinate. Use DeX's
+  // cursor layer as feedback. Conservative corrections avoid oscillation when
+  // Android applies velocity-dependent pointer acceleration.
+  constexpr int maxAttempts = 4;
+  constexpr int tolerance = 3;
+  for (int attempt = 0; attempt < maxAttempts; ++attempt) {
+    int32_t currentX = 0;
+    int32_t currentY = 0;
+    if (!queryCursorPosition(currentX, currentY)) {
+      return false;
+    }
+
+    const int32_t errorX = x - currentX;
+    const int32_t errorY = y - currentY;
+    if (std::abs(errorX) <= tolerance && std::abs(errorY) <= tolerance) {
+      return true;
+    }
+
+    const auto correction = [](int32_t error) {
+      if (std::abs(error) <= tolerance) {
+        return int32_t{0};
+      }
+      const auto value = static_cast<int32_t>(std::lround(static_cast<double>(error) * 0.3));
+      return value == 0 ? (error < 0 ? int32_t{-1} : int32_t{1}) : value;
+    };
+    sendMouseRelativeMove(correction(errorX), correction(errorY));
+  }
+  return true;
 }
 
 void AdbInputBridge::sendMouseButton(bool down, int button, int32_t x, int32_t y) const

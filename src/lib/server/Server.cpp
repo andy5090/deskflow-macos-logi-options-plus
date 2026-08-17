@@ -1732,12 +1732,8 @@ void Server::onMouseMoveSecondary(int32_t dx, int32_t dy)
     return;
   }
 
-  // if doing relative motion on secondary screens and we're locked
-  // to the screen (which activates relative moves) then send a
-  // relative mouse motion.  when we're doing this we pretend as if
-  // the mouse isn't actually moving because we're expecting some
-  // program on the secondary screen to warp the mouse on us, so we
-  // have no idea where it really is.
+  // When locked, preserve the game-oriented relative mode: forward deltas
+  // without changing Deskflow's logical cursor position.
   if (m_relativeMoves && isLockedToScreenServer()) {
     LOG_VERBOSE("relative move on %s by %d,%d", getName(m_active).c_str(), dx, dy);
     m_active->mouseRelativeMove(dx, dy);
@@ -1872,8 +1868,14 @@ void Server::onMouseMoveSecondary(int32_t dx, int32_t dy)
       LOG_VERBOSE("clamp to bottom of \"%s\"", getName(m_active).c_str());
     }
 
-    // warp cursor if it moved.
-    if (m_x != xOld || m_y != yOld) {
+    // Relative-capable clients must receive every raw delta, including motion
+    // directed beyond a clamped edge. This lets Android UHID pointers finish
+    // travelling to the physical edge while Deskflow still tracks its logical
+    // position for ordinary screen switching.
+    if (m_relativeMoves) {
+      LOG_VERBOSE("relative move on %s by %d,%d", getName(m_active).c_str(), dx, dy);
+      m_active->mouseRelativeMove(dx, dy);
+    } else if (m_x != xOld || m_y != yOld) {
       LOG_VERBOSE("move on %s to %d,%d", getName(m_active).c_str(), m_x, m_y);
       m_active->mouseMove(m_x, m_y);
     }

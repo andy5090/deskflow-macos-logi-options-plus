@@ -27,6 +27,7 @@ AdbScreen::AdbScreen(IEventQueue *events)
   }
   m_cursorX = m_bridge.width() / 2;
   m_cursorY = m_bridge.height() / 2;
+  m_suppressNextAbsoluteMove = m_bridge.relativeMouse();
 }
 
 AdbScreen::~AdbScreen()
@@ -191,6 +192,9 @@ void AdbScreen::fakeMouseMove(int32_t x, int32_t y)
   if (m_bridge.relativeMouse()) {
     if (m_suppressNextAbsoluteMove) {
       m_suppressNextAbsoluteMove = false;
+      if (!m_bridge.syncMousePosition(m_cursorX, m_cursorY)) {
+        LOG_DEBUG("Android cursor position was unavailable; keeping relative position");
+      }
       return;
     }
     m_bridge.sendMouseRelativeMove(dx, dy);
@@ -206,7 +210,9 @@ void AdbScreen::fakeMouseRelativeMove(int32_t dx, int32_t dy) const
   m_cursorX = clampedX(previousX + dx);
   m_cursorY = clampedY(previousY + dy);
   if (m_bridge.relativeMouse()) {
-    m_bridge.sendMouseRelativeMove(m_cursorX - previousX, m_cursorY - previousY);
+    // Do not discard motion beyond Deskflow's logical edge. Android owns the
+    // real UHID cursor position, which can legitimately lag behind that edge.
+    m_bridge.sendMouseRelativeMove(dx, dy);
   } else {
     m_bridge.sendMouseMove(m_cursorX, m_cursorY);
   }
@@ -244,7 +250,6 @@ void AdbScreen::disable()
 void AdbScreen::enter()
 {
   m_isOnScreen = true;
-  m_suppressNextAbsoluteMove = m_bridge.relativeMouse();
 }
 
 bool AdbScreen::canLeave()

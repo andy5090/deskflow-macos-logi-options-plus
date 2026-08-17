@@ -32,6 +32,7 @@ public:
   void sendKey(bool down, int keyCode, int metaState, int repeat = 0) const;
   void sendMouseMove(int32_t x, int32_t y) const;
   void sendMouseRelativeMove(int32_t dx, int32_t dy) const;
+  bool syncMousePosition(int32_t x, int32_t y) const;
   void sendMouseButton(bool down, int button, int32_t x, int32_t y) const;
   void sendMouseWheel(float horizontal, float vertical, int32_t x, int32_t y) const;
 
@@ -40,17 +41,21 @@ private:
   QStringList adbArguments(const QStringList &arguments) const;
   bool runAdb(const QStringList &arguments, QByteArray *standardOutput = nullptr) const;
   bool queryDisplaySize();
+  bool queryCursorPosition(int32_t &x, int32_t &y) const;
   void sendLine(const QByteArray &line) const;
 
   QString m_adb;
   QString m_serial;
   QString m_mouseMode;
   QString m_keyboardMode;
+  double m_mouseScale = 1.0;
   int m_displayId = 0;
   int32_t m_width = 1920;
   int32_t m_height = 1080;
   bool m_relativeMouse = false;
   bool m_uhidKeyboard = false;
+  mutable double m_mouseRemainderX = 0.0;
+  mutable double m_mouseRemainderY = 0.0;
   mutable QProcess m_process;
 };
 

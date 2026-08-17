@@ -154,6 +154,7 @@ Optional environment variables:
 |---|---|
 | `DESKFLOW_ANDROID_DISPLAY_ID` | Input target display; defaults to `0` |
 | `DESKFLOW_ANDROID_MOUSE_MODE` | `uhid` (default) or SDK pointer injection fallback |
+| `DESKFLOW_ANDROID_MOUSE_SCALE` | Optional UHID relative-motion multiplier; defaults to `1.0` |
 | `DESKFLOW_ANDROID_KEYBOARD_MODE` | `uhid` (default) or SDK key injection fallback |
 | `DESKFLOW_ADB_SERIAL` | Select an ADB device when more than one is connected |
 | `DESKFLOW_ADB` | Override the `adb` executable path |
@@ -175,6 +176,19 @@ The cursor moves on the phone instead of DeX
 : Re-check `DESKFLOW_ANDROID_DISPLAY_ID` while DeX is active. Samsung may expose
   a separate input-facing display on some One UI versions; inspect all display
   IDs and test them with `adb shell input -d ID tap X Y`.
+
+The cursor stops before reaching the right or bottom edge
+
+: Deskflow tracks an absolute client position while a UHID mouse retains its
+  previous relative Android position. On Samsung DeX, the client reads the
+  SurfaceFlinger cursor layer when entering the screen and synchronizes the two
+  positions. Other vendors may not expose this diagnostic cursor row. The
+  optional `DESKFLOW_ANDROID_MOUSE_SCALE` remains available for device-specific
+  tuning, but a fixed multiplier cannot fully cancel velocity-dependent Android
+  pointer acceleration. On the Deskflow server, enable **Use relative mouse
+  movements** under **Configure Server > Advanced**. The server will then
+  continue forwarding motion beyond its logical edge without requiring Scroll
+  Lock.
 
 The client is killed in the background
 
