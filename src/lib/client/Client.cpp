@@ -214,6 +214,11 @@ void Client::getCursorPos(int32_t &x, int32_t &y) const
   m_screen->getCursorPos(x, y);
 }
 
+bool Client::requiresRelativeMouseMoves() const
+{
+  return m_screen->requiresRelativeMouseMoves();
+}
+
 void Client::enter(int32_t xAbs, int32_t yAbs, uint32_t, KeyModifierMask mask, bool)
 {
   m_active = true;

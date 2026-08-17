@@ -218,6 +218,11 @@ void AdbScreen::fakeMouseRelativeMove(int32_t dx, int32_t dy) const
   }
 }
 
+bool AdbScreen::requiresRelativeMouseMoves() const
+{
+  return m_bridge.relativeMouse();
+}
+
 void AdbScreen::fakeMouseWheel(ScrollDelta delta) const
 {
   delta = applyScrollModifier(delta);

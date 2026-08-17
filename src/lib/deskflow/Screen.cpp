@@ -409,6 +409,11 @@ void Screen::getCursorPos(int32_t &x, int32_t &y) const
   m_screen->getCursorPos(x, y);
 }
 
+bool Screen::requiresRelativeMouseMoves() const
+{
+  return m_screen->requiresRelativeMouseMoves();
+}
+
 void Screen::enablePrimary()
 {
   // get notified of screen saver activation/deactivation

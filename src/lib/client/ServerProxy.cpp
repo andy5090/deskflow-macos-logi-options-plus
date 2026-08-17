@@ -397,7 +397,8 @@ void ServerProxy::flushCompressedMouse()
 void ServerProxy::sendInfo(const ClientInfo &info)
 {
   LOG_VERBOSE("sending info shape=%d,%d %dx%d", info.m_x, info.m_y, info.m_w, info.m_h);
-  ProtocolUtil::writef(m_stream, kMsgDInfo, info.m_x, info.m_y, info.m_w, info.m_h, 0, info.m_mx, info.m_my);
+  const uint16_t capabilities = kClientCapabilitiesMarker | info.m_capabilities;
+  ProtocolUtil::writef(m_stream, kMsgDInfo, info.m_x, info.m_y, info.m_w, info.m_h, capabilities, info.m_mx, info.m_my);
 }
 
 KeyID ServerProxy::translateKey(KeyID id) const
@@ -833,6 +834,9 @@ void ServerProxy::queryInfo()
   ClientInfo info;
   m_client->getShape(info.m_x, info.m_y, info.m_w, info.m_h);
   m_client->getCursorPos(info.m_mx, info.m_my);
+  if (m_client->requiresRelativeMouseMoves()) {
+    info.m_capabilities |= kClientCapabilityRelativeMouseMoves;
+  }
   sendInfo(info);
 }
 

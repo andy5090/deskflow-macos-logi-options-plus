@@ -42,6 +42,7 @@ public:
   void fakeMouseButton(ButtonID id, bool press) override;
   void fakeMouseMove(int32_t x, int32_t y) override;
   void fakeMouseRelativeMove(int32_t dx, int32_t dy) const override;
+  bool requiresRelativeMouseMoves() const override;
   void fakeMouseWheel(ScrollDelta delta) const override;
   bool fakeMediaKey(KeyID id) override;
 

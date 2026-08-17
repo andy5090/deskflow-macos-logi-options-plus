@@ -50,6 +50,12 @@ public:
   */
   virtual void fakeMouseRelativeMove(int32_t dx, int32_t dy) const = 0;
 
+  //! Whether this backend requires the server to send raw relative motion.
+  virtual bool requiresRelativeMouseMoves() const
+  {
+    return false;
+  }
+
   /**
    * @brief Synthesize a mouse wheel event of amount
    * This Implmentation for this method should call `applyScrollModifier` before sending the final delta to the system

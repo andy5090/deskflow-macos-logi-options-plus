@@ -1732,11 +1732,7 @@ void Server::onMouseMoveSecondary(int32_t dx, int32_t dy)
     return;
   }
 
-  // The APK-free DeX client uses a UHID mouse and therefore cannot consume
-  // absolute cursor warps. Recognize the documented default client name even
-  // when an external server configuration overrides the GUI's global relative
-  // mouse setting.
-  const bool relativeMoves = m_relativeMoves || getName(m_active) == "dex-termux";
+  const bool relativeMoves = m_relativeMoves || m_active->requiresRelativeMouseMoves();
 
   // When locked, preserve the game-oriented relative mode: forward deltas
   // without changing Deskflow's logical cursor position.

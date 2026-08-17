@@ -378,10 +378,10 @@ bool ClientProxy1_0::recvInfo()
   int16_t y;
   int16_t w;
   int16_t h;
-  int16_t dummy1;
+  int16_t capabilities;
   int16_t mx;
   int16_t my;
-  if (!ProtocolUtil::readf(getStream(), kMsgDInfo + 4, &x, &y, &w, &h, &dummy1, &mx, &my)) {
+  if (!ProtocolUtil::readf(getStream(), kMsgDInfo + 4, &x, &y, &w, &h, &capabilities, &mx, &my)) {
     return false;
   }
   LOG_DEBUG("received client \"%s\" info shape=%d,%d %dx%d at %d,%d", getName().c_str(), x, y, w, h, mx, my);
@@ -402,6 +402,13 @@ bool ClientProxy1_0::recvInfo()
   m_info.m_h = h;
   m_info.m_mx = mx;
   m_info.m_my = my;
+  const auto capabilityFlags = static_cast<uint16_t>(capabilities);
+  const bool requiresRelativeMouseMoves = (capabilityFlags & kClientCapabilitiesMarker) != 0 &&
+                                          (capabilityFlags & kClientCapabilityRelativeMouseMoves) != 0;
+  setRequiresRelativeMouseMoves(requiresRelativeMouseMoves);
+  if (requiresRelativeMouseMoves) {
+    LOG_INFO("client \"%s\" requires relative mouse moves", getName().c_str());
+  }
 
   // acknowledge receipt
   LOG_VERBOSE("send info ack to \"%s\"", getName().c_str());

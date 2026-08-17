@@ -47,6 +47,12 @@ static const int16_t kProtocolMajorVersion = 1;
  */
 static const int16_t kProtocolMinorVersion = 8;
 
+/** Marks the obsolete kMsgDInfo field as containing client capabilities. */
+static const uint16_t kClientCapabilitiesMarker = 1u << 15;
+
+/** Client requires raw relative mouse motion instead of absolute cursor warps. */
+static const uint16_t kClientCapabilityRelativeMouseMoves = 1u << 0;
+
 /**
  * @brief Default TCP port for Deskflow connections
  *
@@ -1328,12 +1334,14 @@ public:
   int32_t m_h; ///< Screen height in pixels
 
   /**
-   * @brief Obsolete jump zone size
+   * @brief Client input capability flags
    *
-   * @deprecated This field is no longer used and should be set to 0
-   * @since Protocol version 1.0
+   * Older servers interpret this reserved field as obsolete and safely ignore
+   * it. New clients set kClientCapabilitiesMarker plus capability bits such as
+   * kClientCapabilityRelativeMouseMoves on the wire. The marker distinguishes
+   * flags from the small jump-zone values sent by historical clients.
    */
-  int32_t obsolete1;
+  uint16_t m_capabilities = 0;
 
   /**
    * @brief Current mouse position

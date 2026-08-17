@@ -42,6 +42,16 @@ public:
   */
   void getJumpCursorPos(int32_t &x, int32_t &y) const;
 
+  void setRequiresRelativeMouseMoves(bool required)
+  {
+    m_requiresRelativeMouseMoves = required;
+  }
+
+  bool requiresRelativeMouseMoves() const
+  {
+    return m_requiresRelativeMouseMoves;
+  }
+
   //! Get cursor position
   /*!
   Return if this proxy is for client or primary.
@@ -87,4 +97,5 @@ private:
   std::string m_name;
   int32_t m_x = 0;
   int32_t m_y = 0;
+  bool m_requiresRelativeMouseMoves = false;
 };
