@@ -26,6 +26,9 @@ private Q_SLOTS:
     QCOMPARE(deskflow::AdbKeyState::androidKeyCode(kKeyLeft), 21);
     QCOMPARE(deskflow::AdbKeyState::androidKeyCode(kKeyF12), 142);
     QCOMPARE(deskflow::AdbKeyState::androidKeyCode(kKeyAudioUp), 24);
+    QCOMPARE(deskflow::AdbKeyState::androidKeyCode(kKeyCapsLock), 115);
+    QCOMPARE(deskflow::AdbKeyState::androidKeyCode(kKeyNumLock), 143);
+    QCOMPARE(deskflow::AdbKeyState::androidKeyCode(kKeyScrollLock), 116);
   }
 
   void mapsModifiers()

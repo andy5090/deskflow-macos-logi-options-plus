@@ -33,6 +33,7 @@ public:
   void sendMouseMove(int32_t x, int32_t y) const;
   void sendMouseRelativeMove(int32_t dx, int32_t dy) const;
   bool queryCursorPosition(int32_t &x, int32_t &y) const;
+  bool queryKeyboardMetaState(int &metaState) const;
   bool syncMousePosition(int32_t x, int32_t y) const;
   void sendMouseButton(bool down, int button, int32_t x, int32_t y) const;
   void sendMouseWheel(float horizontal, float vertical, int32_t x, int32_t y) const;

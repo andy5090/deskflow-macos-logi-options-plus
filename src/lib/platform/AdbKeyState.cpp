@@ -60,6 +60,16 @@ void AdbKeyState::updateKeyMap()
 
 void AdbKeyState::updateKeyState()
 {
+  int metaState = 0;
+  if (m_bridge.queryKeyboardMetaState(metaState)) {
+    m_lockState = lockMaskFromAndroidMetaState(metaState);
+    m_lockStateKnown = true;
+    updateAndroidModifierState();
+    LOG_DEBUG("Android keyboard lock state: 0x%04x", m_lockState);
+  } else {
+    m_lockStateKnown = false;
+    LOG_DEBUG("Android keyboard lock state was unavailable");
+  }
 }
 
 void AdbKeyState::setHalfDuplexMask(KeyModifierMask mask)
@@ -124,11 +134,60 @@ int AdbKeyState::androidModifierMetaState(KeyID id)
 void AdbKeyState::updateAndroidModifierState()
 {
   m_androidModifierState = 0;
-  m_activeModifiers = 0;
+  m_activeModifiers = m_lockState;
   for (const auto &[button, key] : m_pressed) {
     (void)button;
     m_androidModifierState |= key.modifierMetaState;
     m_activeModifiers |= key.modifierMask;
+  }
+}
+
+KeyModifierMask AdbKeyState::lockMaskFromAndroidMetaState(int metaState)
+{
+  KeyModifierMask mask = 0;
+  if ((metaState & 0x00100000) != 0) { // META_CAPS_LOCK_ON
+    mask |= KeyModifierCapsLock;
+  }
+  if ((metaState & 0x00200000) != 0) { // META_NUM_LOCK_ON
+    mask |= KeyModifierNumLock;
+  }
+  if ((metaState & 0x00400000) != 0) { // META_SCROLL_LOCK_ON
+    mask |= KeyModifierScrollLock;
+  }
+  return mask;
+}
+
+void AdbKeyState::syncLockState(KeyModifierMask mask)
+{
+  constexpr KeyModifierMask lockMask = KeyModifierCapsLock | KeyModifierNumLock | KeyModifierScrollLock;
+  const KeyModifierMask desiredState = mask & lockMask;
+  if (!m_lockStateKnown) {
+    updateKeyState();
+  }
+  if (!m_lockStateKnown) {
+    // Android's input dump is normally available to the ADB shell. If a
+    // vendor omits it, assume the newly created virtual keyboard starts with
+    // its lock modifiers off and converge from the next protocol key mask.
+    m_lockState = 0;
+    m_lockStateKnown = true;
+  }
+
+  const KeyModifierMask changed = m_lockState ^ desiredState;
+  const auto toggle = [this, changed](KeyModifierMask modifier, int keyCode) {
+    if ((changed & modifier) == 0) {
+      return;
+    }
+    m_bridge.sendKey(true, keyCode, m_androidModifierState);
+    m_bridge.sendKey(false, keyCode, m_androidModifierState);
+  };
+  toggle(KeyModifierCapsLock, 115);
+  toggle(KeyModifierNumLock, 143);
+  toggle(KeyModifierScrollLock, 116);
+
+  if (changed != 0) {
+    LOG_VERBOSE("synchronized Android keyboard lock state from 0x%04x to 0x%04x", m_lockState, desiredState);
+    m_lockState = desiredState;
+    updateAndroidModifierState();
   }
 }
 
@@ -317,6 +376,12 @@ int AdbKeyState::androidKeyCode(KeyID id)
 
 void AdbKeyState::fakeKeyDown(KeyID id, KeyModifierMask mask, KeyButton button, const std::string &)
 {
+  syncLockState(mask);
+  if (id == kKeyCapsLock || id == kKeyNumLock || id == kKeyScrollLock) {
+    // Lock keys in the protocol may be half-duplex (notably on macOS). Their
+    // desired state is carried in every key mask and was applied above.
+    return;
+  }
   const int keyCode = androidKeyCode(id);
   if (keyCode == 0) {
     LOG_DEBUG("Android ADB backend cannot map key id 0x%x", id);
@@ -342,6 +407,10 @@ void AdbKeyState::fakeKeyDown(KeyID id, KeyModifierMask mask, KeyButton button, 
 
 bool AdbKeyState::fakeKeyRepeat(KeyID id, KeyModifierMask mask, int32_t count, KeyButton button, const std::string &)
 {
+  syncLockState(mask);
+  if (id == kKeyCapsLock || id == kKeyNumLock || id == kKeyScrollLock) {
+    return true;
+  }
   const int keyCode = androidKeyCode(id);
   if (keyCode == 0) {
     return false;

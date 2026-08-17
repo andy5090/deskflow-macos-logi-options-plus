@@ -851,10 +851,17 @@ bool OSXScreen::shouldEnforceAsciiInputSource(bool isPrimary, bool isOnScreen, b
 }
 
 KeyModifierMask
-OSXScreen::adjustRemoteCapsLockMask(KeyModifierMask oldMask, KeyModifierMask newMask, CGKeyCode keyCode)
+OSXScreen::adjustRemoteCapsLockMask(
+    KeyModifierMask oldMask, KeyModifierMask newMask, CGKeyCode keyCode, bool isKeyDown
+)
 {
   if (keyCode == kVK_CapsLock) {
-    return (newMask & ~KeyModifierCapsLock) | ((oldMask ^ KeyModifierCapsLock) & KeyModifierCapsLock);
+    // A modifier produces kCGEventFlagsChanged for both its press and release.
+    // When Caps Lock is configured to switch input sources, neither event has
+    // a reliable alpha-shift flag. Toggle the remote lock only on the physical
+    // press; otherwise a single press is immediately canceled by its release.
+    const auto capsLock = isKeyDown ? oldMask ^ KeyModifierCapsLock : oldMask;
+    return (newMask & ~KeyModifierCapsLock) | (capsLock & KeyModifierCapsLock);
   }
 
   // Selecting the ASCII input source after Caps Lock produces a synthetic
@@ -1223,7 +1230,9 @@ bool OSXScreen::onKey(CGEventRef event)
     KeyModifierMask oldMask = getActiveModifiers();
     KeyModifierMask newMask = m_keyState->mapModifiersFromOSX(macMask);
     if (enforceAscii) {
-      newMask = adjustRemoteCapsLockMask(oldMask, newMask, static_cast<CGKeyCode>(virtualKey));
+      const auto keyCode = static_cast<CGKeyCode>(virtualKey);
+      const auto isKeyDown = CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, keyCode);
+      newMask = adjustRemoteCapsLockMask(oldMask, newMask, keyCode, isKeyDown);
     }
     m_keyState->handleModifierKeys(getEventTarget(), oldMask, newMask);
 

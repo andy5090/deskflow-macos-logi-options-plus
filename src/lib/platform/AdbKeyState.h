@@ -48,12 +48,16 @@ private:
   };
 
   void updateAndroidModifierState();
+  void syncLockState(KeyModifierMask mask);
+  static KeyModifierMask lockMaskFromAndroidMetaState(int metaState);
 
   AdbInputBridge &m_bridge;
   std::map<KeyButton, PressedKey> m_pressed;
   KeyModifierMask m_activeModifiers = 0;
+  KeyModifierMask m_lockState = 0;
   KeyModifierMask m_halfDuplexMask = 0;
   int m_androidModifierState = 0;
+  bool m_lockStateKnown = false;
 };
 
 } // namespace deskflow

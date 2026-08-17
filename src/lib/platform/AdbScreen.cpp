@@ -25,6 +25,7 @@ AdbScreen::AdbScreen(IEventQueue *events)
   if (!m_bridge.start()) {
     throw ScreenUnavailableException{};
   }
+  m_keyState.updateKeyState();
   m_cursorX = m_bridge.width() / 2;
   m_cursorY = m_bridge.height() / 2;
   m_suppressNextAbsoluteMove = m_bridge.relativeMouse();

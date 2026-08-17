@@ -284,6 +284,27 @@ bool AdbInputBridge::queryCursorPosition(int32_t &x, int32_t &y) const
   return true;
 }
 
+bool AdbInputBridge::queryKeyboardMetaState(int &metaState) const
+{
+  QByteArray output;
+  if (!runAdb({QStringLiteral("shell"), QStringLiteral("dumpsys"), QStringLiteral("input")}, &output)) {
+    return false;
+  }
+
+  static const QRegularExpression keyboardPattern{QStringLiteral(
+      "Device\\s+-?\\d+:\\s+Deskflow virtual keyboard[\\s\\S]*?Keyboard Input Mapper:[\\s\\S]*?"
+      "MetaState:\\s*0x([0-9a-fA-F]+)"
+  )};
+  const auto match = keyboardPattern.match(QString::fromUtf8(output));
+  if (!match.hasMatch()) {
+    return false;
+  }
+
+  bool ok = false;
+  metaState = match.captured(1).toInt(&ok, 16);
+  return ok;
+}
+
 bool AdbInputBridge::syncMousePosition(int32_t x, int32_t y) const
 {
   if (!m_relativeMouse) {
