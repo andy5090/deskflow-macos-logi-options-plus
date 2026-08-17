@@ -188,7 +188,9 @@ The cursor stops before reaching the right or bottom edge
   pointer acceleration. On the Deskflow server, enable **Use relative mouse
   movements** under **Configure Server > Advanced**. The server will then
   continue forwarding motion beyond its logical edge without requiring Scroll
-  Lock.
+  Lock. The documented `dex-termux` client name also enables this behavior
+  automatically, including when an external server configuration overrides the
+  GUI setting.
 
 The client is killed in the background
 
