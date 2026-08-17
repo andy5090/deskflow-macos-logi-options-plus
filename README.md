@@ -38,8 +38,58 @@ This fork is intended to remain close to upstream Deskflow. Features may be prop
 
 The `android-termux-dex` branch adds a headless Termux client that controls the
 Android or Samsung DeX display through a local wireless-ADB input bridge. It
-does not install an Android APK. See the [Termux and DeX client guide](docs/termux-dex.md)
-for the architecture, security tradeoffs, build steps, and current limitations.
+does not install an Android APK.
+
+### Install on an Android device
+
+Install Termux, Termux:API, and Termux:Boot from the same trusted source. Open
+the two add-ons once, grant their requested permissions, and disable battery
+optimization for all three applications. In Termux:
+
+```sh
+pkg update
+pkg install x11-repo
+pkg install git cmake clang make pkg-config openssl android-tools openjdk-17 \
+  d8 libxkbcommon qt6-qtbase qt6-qtbase-gtk-platformtheme qt6-qttools \
+  termux-api termux-services
+
+git clone --branch android-termux-dex \
+  https://github.com/andy5090/deskflow-macos-logi-options-plus.git
+cd deskflow-macos-logi-options-plus
+./scripts/build-termux-adb.sh
+```
+
+Enable Android **Wireless debugging**, pair once, and connect using the separate
+connection port shown by Android:
+
+```sh
+adb pair localhost:PAIRING_PORT
+adb connect localhost:CONNECTION_PORT
+adb devices -l
+```
+
+Install and start the persistent service. Use a unique `--name` for every
+Android client, add that same name to the Deskflow server layout, and use the
+DeX display ID reported by that device:
+
+```sh
+./scripts/install-termux-dex-service.sh \
+  --server 192.168.1.10 \
+  --name dex-phone \
+  --display 2 \
+  --adb-serial localhost:CONNECTION_PORT
+```
+
+The installer creates a runit service independent of the current terminal or
+Codex session and adds the Termux:Boot hook needed after a reboot. Check it with
+`sv status $PREFIX/var/service/deskflow-dex`; logs are stored under
+`~/.local/state/deskflow-termux-dex/log/`. Wireless debugging may be disabled
+and its connection port may change after an Android reboot. In that case,
+enable it again, run `adb connect localhost:NEW_PORT`, then restart the service
+with `sv restart $PREFIX/var/service/deskflow-dex`.
+
+See the [Termux and DeX client guide](docs/termux-dex.md) for the architecture,
+security tradeoffs, manual operation, service configuration, and limitations.
 
 ## Branches
 

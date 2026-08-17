@@ -47,6 +47,8 @@ CMakeFiles/*
 # scripts folder (except maintained project scripts)
 /scripts/*
 !/scripts/build-termux-adb.sh
+!/scripts/install-termux-dex-service.sh
+!/scripts/run-termux-dex-client.sh
 
 # Ai helperfilers
 **/[cC]laude.[mM][dD]

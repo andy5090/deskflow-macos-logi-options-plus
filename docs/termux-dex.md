@@ -164,6 +164,57 @@ Optional environment variables:
 Use `termux-wake-unlock` after stopping the client if the wake lock is no
 longer needed.
 
+## Persistent service and boot startup
+
+For normal use, install the client as a `termux-services` runit service. This
+keeps it independent of the shell, SSH, or Codex session that started it:
+
+```sh
+pkg install termux-api termux-services
+./scripts/install-termux-dex-service.sh \
+  --server 192.168.1.10 \
+  --name dex-phone \
+  --display 2 \
+  --adb-serial localhost:CONNECTION_PORT
+```
+
+If a working settings file already contains the trusted server certificate
+state, preserve it with `--settings /absolute/path/to/termux-client.conf`
+instead of generating a new one. The installer saves device-specific values in
+`~/.config/deskflow-termux-dex/service.env`; edit that file and restart the
+service when an address or display ID changes.
+
+Useful commands:
+
+```sh
+sv status "$PREFIX/var/service/deskflow-dex"
+sv restart "$PREFIX/var/service/deskflow-dex"
+sv down "$PREFIX/var/service/deskflow-dex"
+tail -f "$HOME/.local/state/deskflow-termux-dex/log/current"
+```
+
+For startup immediately after Android boots, install **Termux:API** and
+**Termux:Boot** from the same source as Termux and open them once so Android
+permits their integrations. The installer creates
+`~/.termux/boot/start-services`, which acquires a wake lock and starts the runit
+service directory. Also disable battery optimization for Termux and both
+add-ons.
+
+Android may turn Wireless debugging off during reboot, and its TLS connection
+port is not guaranteed to remain stable. Pairing authorization normally
+persists, but if automatic discovery is unavailable in the device's
+`android-tools` build, enable Wireless debugging again and run:
+
+```sh
+adb connect localhost:NEW_CONNECTION_PORT
+sv restart "$PREFIX/var/service/deskflow-dex"
+```
+
+The supervisor accepts a sole manually connected ADB device even if the serial
+saved by the installer used the previous port. Fully automatic recovery while
+Wireless debugging itself is disabled is intentionally impossible without an
+APK, root access, or another privileged component.
+
 ## Troubleshooting
 
 `no authorized adb device is connected`
