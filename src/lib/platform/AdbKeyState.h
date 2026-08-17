@@ -8,6 +8,7 @@
 
 #include "deskflow/IKeyState.h"
 
+#include <chrono>
 #include <map>
 
 namespace deskflow {
@@ -48,7 +49,10 @@ private:
   };
 
   void updateAndroidModifierState();
+  void ensureLockStateKnown();
   void syncLockState(KeyModifierMask mask);
+  void handleCapsLock();
+  KeyModifierMask effectiveModifierMask(KeyModifierMask mask) const;
   static KeyModifierMask lockMaskFromAndroidMetaState(int metaState);
 
   AdbInputBridge &m_bridge;
@@ -58,6 +62,8 @@ private:
   KeyModifierMask m_halfDuplexMask = 0;
   int m_androidModifierState = 0;
   bool m_lockStateKnown = false;
+  bool m_capsLockLocallyManaged = false;
+  std::chrono::steady_clock::time_point m_lastCapsLockEvent;
 };
 
 } // namespace deskflow

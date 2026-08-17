@@ -16,6 +16,9 @@ namespace deskflow {
 
 namespace {
 
+constexpr auto kCapsLockDuplicateWindow = std::chrono::milliseconds{300};
+constexpr KeyModifierMask kLockMask = KeyModifierCapsLock | KeyModifierNumLock | KeyModifierScrollLock;
+
 bool needsShift(KeyID id)
 {
   return (id >= 'A' && id <= 'Z') || id == '~' || id == '_' || id == '+' || id == '{' || id == '}' || id == '|' ||
@@ -157,10 +160,8 @@ KeyModifierMask AdbKeyState::lockMaskFromAndroidMetaState(int metaState)
   return mask;
 }
 
-void AdbKeyState::syncLockState(KeyModifierMask mask)
+void AdbKeyState::ensureLockStateKnown()
 {
-  constexpr KeyModifierMask lockMask = KeyModifierCapsLock | KeyModifierNumLock | KeyModifierScrollLock;
-  const KeyModifierMask desiredState = mask & lockMask;
   if (!m_lockStateKnown) {
     updateKeyState();
   }
@@ -170,6 +171,44 @@ void AdbKeyState::syncLockState(KeyModifierMask mask)
     // its lock modifiers off and converge from the next protocol key mask.
     m_lockState = 0;
     m_lockStateKnown = true;
+  }
+}
+
+KeyModifierMask AdbKeyState::effectiveModifierMask(KeyModifierMask mask) const
+{
+  return (mask & ~kLockMask) | m_lockState;
+}
+
+void AdbKeyState::handleCapsLock()
+{
+  ensureLockStateKnown();
+
+  const auto now = std::chrono::steady_clock::now();
+  if (m_capsLockLocallyManaged && now - m_lastCapsLockEvent < kCapsLockDuplicateWindow) {
+    LOG_VERBOSE("ignored duplicate remote Caps Lock event");
+    return;
+  }
+
+  m_capsLockLocallyManaged = true;
+  m_lastCapsLockEvent = now;
+  const auto previousState = m_lockState;
+  m_bridge.sendKey(true, 115, m_androidModifierState);
+  m_bridge.sendKey(false, 115, m_androidModifierState);
+  m_lockState ^= KeyModifierCapsLock;
+  updateAndroidModifierState();
+  LOG_VERBOSE("toggled Android Caps Lock state from 0x%04x to 0x%04x", previousState, m_lockState);
+}
+
+void AdbKeyState::syncLockState(KeyModifierMask mask)
+{
+  ensureLockStateKnown();
+
+  KeyModifierMask desiredState = mask & kLockMask;
+  if (m_capsLockLocallyManaged) {
+    // Some macOS input-source configurations emit a second, contradictory
+    // Caps event and keep that incorrect mask on subsequent key events. Once
+    // the client has seen a Caps key, its UHID lock state is authoritative.
+    desiredState = (desiredState & ~KeyModifierCapsLock) | (m_lockState & KeyModifierCapsLock);
   }
 
   const KeyModifierMask changed = m_lockState ^ desiredState;
@@ -376,8 +415,12 @@ int AdbKeyState::androidKeyCode(KeyID id)
 
 void AdbKeyState::fakeKeyDown(KeyID id, KeyModifierMask mask, KeyButton button, const std::string &)
 {
+  if (id == kKeyCapsLock) {
+    handleCapsLock();
+    return;
+  }
   syncLockState(mask);
-  if (id == kKeyCapsLock || id == kKeyNumLock || id == kKeyScrollLock) {
+  if (id == kKeyNumLock || id == kKeyScrollLock) {
     // Lock keys in the protocol may be half-duplex (notably on macOS). Their
     // desired state is carried in every key mask and was applied above.
     return;
@@ -389,7 +432,8 @@ void AdbKeyState::fakeKeyDown(KeyID id, KeyModifierMask mask, KeyButton button, 
   }
   const int modifierMetaState = androidModifierMetaState(id);
   const KeyModifierMask modifierMask = deskflowModifierMask(id);
-  int requiredMetaState = androidMetaState(mask) & 0x00700000; // lock state
+  const auto effectiveMask = effectiveModifierMask(mask);
+  int requiredMetaState = androidMetaState(effectiveMask) & 0x00700000; // lock state
   if (needsShift(id)) {
     requiredMetaState |= 0x00000001;
   }
@@ -398,8 +442,9 @@ void AdbKeyState::fakeKeyDown(KeyID id, KeyModifierMask mask, KeyButton button, 
     m_pressed.erase(found);
     updateAndroidModifierState();
   }
-  const int metaState = modifierMetaState == 0 ? (androidMetaState(mask) | m_androidModifierState | requiredMetaState)
-                                               : (m_androidModifierState | requiredMetaState);
+  const int metaState = modifierMetaState == 0
+                            ? (androidMetaState(effectiveMask) | m_androidModifierState | requiredMetaState)
+                            : (m_androidModifierState | requiredMetaState);
   m_pressed[button] = {keyCode, requiredMetaState, modifierMetaState, modifierMask};
   m_bridge.sendKey(true, keyCode, metaState);
   updateAndroidModifierState();
@@ -407,15 +452,18 @@ void AdbKeyState::fakeKeyDown(KeyID id, KeyModifierMask mask, KeyButton button, 
 
 bool AdbKeyState::fakeKeyRepeat(KeyID id, KeyModifierMask mask, int32_t count, KeyButton button, const std::string &)
 {
+  if (id == kKeyCapsLock) {
+    return true;
+  }
   syncLockState(mask);
-  if (id == kKeyCapsLock || id == kKeyNumLock || id == kKeyScrollLock) {
+  if (id == kKeyNumLock || id == kKeyScrollLock) {
     return true;
   }
   const int keyCode = androidKeyCode(id);
   if (keyCode == 0) {
     return false;
   }
-  int metaState = androidMetaState(mask) | m_androidModifierState;
+  int metaState = androidMetaState(effectiveModifierMask(mask)) | m_androidModifierState;
   if (needsShift(id)) {
     metaState |= 0x00000001;
   }
