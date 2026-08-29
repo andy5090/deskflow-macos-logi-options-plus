@@ -163,7 +163,7 @@ private:
   static bool isEmergencyReturnKey(CGEventType type, CGKeyCode keyCode, CGEventFlags flags, bool isAutoRepeat);
   static bool shouldEnforceAsciiInputSource(bool isPrimary, bool isOnScreen, bool settingEnabled);
   static KeyModifierMask
-  adjustRemoteCapsLockMask(KeyModifierMask oldMask, KeyModifierMask newMask, CGKeyCode keyCode, bool isKeyDown);
+  adjustRemoteCapsLockMask(KeyModifierMask oldMask, KeyModifierMask newMask, CGKeyCode keyCode);
   void switchToAsciiInputSource(bool preserveCurrentSource);
   void restoreInputSource();
 

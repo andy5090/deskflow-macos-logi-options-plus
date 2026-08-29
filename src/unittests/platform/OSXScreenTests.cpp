@@ -47,26 +47,23 @@ void OSXScreenTests::enforceAsciiInputSource_onlyWhileControllingRemote()
   QVERIFY(!OSXScreen::shouldEnforceAsciiInputSource(false, false, true));
 }
 
-void OSXScreenTests::remoteCapsLockMask_togglesOnlyOnPhysicalKeyDown()
+void OSXScreenTests::remoteCapsLockMask_togglesOnlyForPhysicalKey()
 {
   QCOMPARE(
-      OSXScreen::adjustRemoteCapsLockMask(0, KeyModifierCapsLock, kVK_CapsLock, true), KeyModifierCapsLock
+      OSXScreen::adjustRemoteCapsLockMask(0, KeyModifierCapsLock, kVK_CapsLock), KeyModifierCapsLock
   );
   QCOMPARE(
-      OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, 0, kVK_CapsLock, false), KeyModifierCapsLock
-  );
-  QCOMPARE(
-      OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, KeyModifierCapsLock, kVK_CapsLock, true),
+      OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, KeyModifierCapsLock, kVK_CapsLock),
       static_cast<KeyModifierMask>(0)
   );
   QCOMPARE(
-      OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, 0, 0xff, false), KeyModifierCapsLock
+      OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, 0, 0xff), KeyModifierCapsLock
   );
   QCOMPARE(
-      OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, 0, kVK_ANSI_Period, true), KeyModifierCapsLock
+      OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, 0, kVK_ANSI_Period), KeyModifierCapsLock
   );
   QCOMPARE(
-      OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, KeyModifierShift, 0xff, false),
+      OSXScreen::adjustRemoteCapsLockMask(KeyModifierCapsLock, KeyModifierShift, 0xff),
       static_cast<KeyModifierMask>(KeyModifierCapsLock | KeyModifierShift)
   );
 }

@@ -17,7 +17,7 @@ private Q_SLOTS:
   void emergencyReturnKey_acceptsAdditionalModifiers();
   void emergencyReturnKey_rejectsIncompleteOrRepeatedChord();
   void enforceAsciiInputSource_onlyWhileControllingRemote();
-  void remoteCapsLockMask_togglesOnlyOnPhysicalKeyDown();
+  void remoteCapsLockMask_togglesOnlyForPhysicalKey();
   void navigationGesturesEnabledFromOptions_enabledOption_returnsTrue();
   void navigationGesturesEnabledFromOptions_disabledOption_returnsFalse();
   void navigationGesturesEnabledFromOptions_unrelatedOption_preservesCurrentValue();
