@@ -11,8 +11,11 @@
 #include "deskflow/IClipboard.h"
 #include "deskflow/ScreenException.h"
 
+#include <QDateTime>
+
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 namespace deskflow {
 
@@ -55,9 +58,29 @@ bool AdbScreen::setClipboard(ClipboardID id, const IClipboard *clipboard)
   if (id >= kClipboardEnd || clipboard == nullptr) {
     return false;
   }
-  // The ADB backend currently keeps the protocol clipboard in memory. A
-  // future bridge protocol revision can publish text through ClipboardService.
-  return IClipboard::copy(&m_clipboards[id], clipboard);
+
+  if (!IClipboard::copy(&m_clipboards[id], clipboard)) {
+    return false;
+  }
+  if (id != kClipboardClipboard || !m_bridge.clipboardText()) {
+    return true;
+  }
+
+  std::string text;
+  if (m_clipboards[id].open(0)) {
+    if (m_clipboards[id].has(IClipboard::Format::Text)) {
+      text = m_clipboards[id].get(IClipboard::Format::Text);
+    }
+    m_clipboards[id].close();
+  }
+  if (!m_bridge.writeClipboardText(text)) {
+    LOG_WARN("failed to publish clipboard text to Android");
+    return true;
+  }
+
+  m_lastAndroidClipboard = text;
+  m_androidClipboardInitialized = true;
+  return true;
 }
 
 void AdbScreen::getShape(int32_t &x, int32_t &y, int32_t &width, int32_t &height) const
@@ -283,6 +306,37 @@ void AdbScreen::leave()
 
 void AdbScreen::checkClipboards()
 {
+  std::string text;
+  if (!m_bridge.readClipboardText(text)) {
+    return;
+  }
+  if (m_androidClipboardInitialized && text == m_lastAndroidClipboard) {
+    return;
+  }
+
+  const bool hadBaseline = m_androidClipboardInitialized;
+  m_lastAndroidClipboard = text;
+  m_androidClipboardInitialized = true;
+  if (!hadBaseline && text.empty()) {
+    return;
+  }
+
+  const auto now = static_cast<IClipboard::Time>(QDateTime::currentMSecsSinceEpoch());
+  m_clipboardTime = now == 0 || now == m_clipboardTime ? m_clipboardTime + 1 : now;
+  if (m_clipboardTime == 0) {
+    m_clipboardTime = 1;
+  }
+
+  auto &clipboard = m_clipboards[kClipboardClipboard];
+  if (!clipboard.open(m_clipboardTime)) {
+    return;
+  }
+  clipboard.empty();
+  clipboard.add(IClipboard::Format::Text, text);
+  clipboard.close();
+
+  LOG_DEBUG("Android clipboard changed");
+  sendClipboardEvent(EventTypes::ClipboardGrabbed, kClipboardClipboard);
 }
 
 void AdbScreen::openScreensaver(bool)
@@ -331,6 +385,18 @@ void AdbScreen::updateButtons()
 IKeyState *AdbScreen::getKeyState() const
 {
   return const_cast<AdbKeyState *>(&m_keyState);
+}
+
+void AdbScreen::sendClipboardEvent(EventTypes type, ClipboardID id)
+{
+  auto *info = static_cast<ClipboardInfo *>(std::malloc(sizeof(ClipboardInfo)));
+  if (info == nullptr) {
+    LOG_ERR("failed to allocate Android clipboard event");
+    return;
+  }
+  info->m_id = id;
+  info->m_sequenceNumber = m_sequenceNumber;
+  m_events->addEvent(Event(type, getEventTarget(), info));
 }
 
 } // namespace deskflow

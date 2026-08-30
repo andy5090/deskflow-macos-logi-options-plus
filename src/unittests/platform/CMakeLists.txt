@@ -34,6 +34,13 @@ elseif(APPLE)
 elseif(UNIX)
   if(BUILD_ADB_CLIENT_SUPPORT)
     create_test(
+      NAME AdbInputBridgeTests
+      DEPENDS platform
+      LIBS base arch
+      SOURCE AdbInputBridgeTests.cpp
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/src/lib/platform"
+    )
+    create_test(
       NAME AdbKeyStateTests
       DEPENDS platform
       LIBS base arch

@@ -11,6 +11,7 @@
 #include <QStringList>
 
 #include <cstdint>
+#include <string>
 
 namespace deskflow {
 
@@ -28,6 +29,7 @@ public:
   int displayId() const;
   bool relativeMouse() const;
   bool uhidKeyboard() const;
+  bool clipboardText() const;
 
   void sendKey(bool down, int keyCode, int metaState, int repeat = 0) const;
   void sendMouseMove(int32_t x, int32_t y) const;
@@ -37,6 +39,8 @@ public:
   bool syncMousePosition(int32_t x, int32_t y) const;
   void sendMouseButton(bool down, int button, int32_t x, int32_t y) const;
   void sendMouseWheel(float horizontal, float vertical, int32_t x, int32_t y) const;
+  bool readClipboardText(std::string &text) const;
+  bool writeClipboardText(const std::string &text) const;
 
 private:
   QString bridgePath() const;
@@ -44,6 +48,7 @@ private:
   bool runAdb(const QStringList &arguments, QByteArray *standardOutput = nullptr) const;
   bool queryDisplaySize();
   void sendLine(const QByteArray &line) const;
+  bool clipboardRequest(const QByteArray &operation, const QByteArray &argument, QByteArray &payload) const;
 
   QString m_adb;
   QString m_serial;
@@ -55,6 +60,8 @@ private:
   int32_t m_height = 1080;
   bool m_relativeMouse = false;
   bool m_uhidKeyboard = false;
+  bool m_clipboardText = false;
+  mutable uint64_t m_clipboardRequestId = 0;
   mutable double m_mouseRemainderX = 0.0;
   mutable double m_mouseRemainderY = 0.0;
   mutable QProcess m_process;

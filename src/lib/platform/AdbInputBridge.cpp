@@ -10,6 +10,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFileInfo>
 #include <QRegularExpression>
 
@@ -182,17 +183,21 @@ bool AdbInputBridge::start()
   }
   m_relativeMouse = greeting.contains(QByteArrayLiteral("MOUSE_UHID"));
   m_uhidKeyboard = greeting.contains(QByteArrayLiteral("KEYBOARD_UHID"));
+  m_clipboardText = greeting.contains(QByteArrayLiteral("CLIPBOARD_TEXT"));
   if (m_mouseMode == QStringLiteral("uhid") && !m_relativeMouse) {
     LOG_WARN("Android UHID mouse was unavailable; falling back to absolute SDK events");
   }
   if (m_keyboardMode == QStringLiteral("uhid") && !m_uhidKeyboard) {
     LOG_WARN("Android UHID keyboard was unavailable; falling back to SDK key events");
   }
+  if (!m_clipboardText) {
+    LOG_WARN("Android clipboard access is unavailable; clipboard data will remain in memory");
+  }
 
   LOG_INFO(
-      "Android ADB input bridge ready (display=%d, size=%dx%d, mouse=%s, mouse-scale=%.2f, keyboard=%s)", m_displayId,
-      static_cast<int>(m_width), static_cast<int>(m_height), m_relativeMouse ? "uhid" : "sdk", m_mouseScale,
-      m_uhidKeyboard ? "uhid" : "sdk"
+      "Android ADB input bridge ready (display=%d, size=%dx%d, mouse=%s, mouse-scale=%.2f, keyboard=%s, clipboard=%s)",
+      m_displayId, static_cast<int>(m_width), static_cast<int>(m_height), m_relativeMouse ? "uhid" : "sdk",
+      m_mouseScale, m_uhidKeyboard ? "uhid" : "sdk", m_clipboardText ? "text" : "unavailable"
   );
   return true;
 }
@@ -358,6 +363,75 @@ void AdbInputBridge::sendMouseWheel(float horizontal, float vertical, int32_t x,
   );
 }
 
+bool AdbInputBridge::clipboardRequest(
+    const QByteArray &operation, const QByteArray &argument, QByteArray &payload
+) const
+{
+  if (!m_clipboardText || m_process.state() != QProcess::Running) {
+    return false;
+  }
+
+  const QByteArray requestId = QByteArray::number(++m_clipboardRequestId);
+  QByteArray request = operation + ' ' + requestId;
+  if (!argument.isEmpty()) {
+    request += ' ' + argument;
+  }
+  sendLine(request + '\n');
+
+  QElapsedTimer timer;
+  timer.start();
+  constexpr int timeoutMs = 2000;
+  while (timer.elapsed() < timeoutMs) {
+    if (!m_process.canReadLine()) {
+      const int remaining = timeoutMs - static_cast<int>(timer.elapsed());
+      if (remaining <= 0 || !m_process.waitForReadyRead(remaining)) {
+        break;
+      }
+    }
+
+    while (m_process.canReadLine()) {
+      const QByteArray response = m_process.readLine().trimmed();
+      const QList<QByteArray> fields = response.split(' ');
+      if (fields.size() != 4 || fields[0] != QByteArrayLiteral("CLIP") || fields[1] != requestId) {
+        LOG_WARN("unexpected Android clipboard response: %s", response.constData());
+        continue;
+      }
+      if (fields[2] != QByteArrayLiteral("OK")) {
+        LOG_WARN("Android clipboard request was rejected");
+        return false;
+      }
+      payload = fields[3] == QByteArrayLiteral("-") ? QByteArray{} : fields[3];
+      return true;
+    }
+  }
+
+  LOG_WARN("timed out waiting for Android clipboard response");
+  return false;
+}
+
+bool AdbInputBridge::readClipboardText(std::string &text) const
+{
+  QByteArray encoded;
+  if (!clipboardRequest(QByteArrayLiteral("CG"), {}, encoded)) {
+    return false;
+  }
+  const QByteArray decoded = QByteArray::fromBase64(encoded, QByteArray::AbortOnBase64DecodingErrors);
+  if (!encoded.isEmpty() && decoded.isNull()) {
+    LOG_WARN("Android clipboard returned invalid base64 data");
+    return false;
+  }
+  text.assign(decoded.constData(), static_cast<size_t>(decoded.size()));
+  return true;
+}
+
+bool AdbInputBridge::writeClipboardText(const std::string &text) const
+{
+  const QByteArray data{text.data(), static_cast<qsizetype>(text.size())};
+  const QByteArray encoded = data.isEmpty() ? QByteArrayLiteral("-") : data.toBase64();
+  QByteArray response;
+  return clipboardRequest(QByteArrayLiteral("CS"), encoded, response);
+}
+
 int32_t AdbInputBridge::width() const
 {
   return m_width;
@@ -381,6 +455,11 @@ bool AdbInputBridge::relativeMouse() const
 bool AdbInputBridge::uhidKeyboard() const
 {
   return m_uhidKeyboard;
+}
+
+bool AdbInputBridge::clipboardText() const
+{
+  return m_clipboardText;
 }
 
 } // namespace deskflow

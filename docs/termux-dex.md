@@ -51,8 +51,10 @@ and stops when the Deskflow client stops.
 - Common typing keys, modifiers, navigation keys, F1-F12, media keys, Hangul
   language switching, absolute/relative pointer motion, five mouse buttons,
   and horizontal/vertical scrolling are mapped.
-- Android clipboard integration is not implemented yet. Deskflow clipboard
-  data is retained only in the client's in-memory protocol clipboard.
+- UTF-8 text clipboard sharing works in both directions through the existing
+  ADB shell bridge. Server clipboard updates are published to Android
+  immediately, and Android clipboard changes are detected when leaving the
+  client screen. HTML and bitmap clipboard formats are not supported yet.
 - End-to-end behavior can vary with Android/One UI versions and input display
   routing. In particular, the DeX display ID must be selected explicitly.
 
@@ -258,8 +260,9 @@ Korean characters do not compose
 : The backend sends physical keyboard scan codes. Select a Korean-capable IME
   on Android/DeX and configure its external-keyboard language shortcut. The
   Hangul key, `Ctrl+Alt+K`, and `Shift+Space` are transported as physical key
-  combinations; which one changes language remains an IME setting. Direct
-  Unicode text/clipboard injection is not implemented yet.
+  combinations; which one changes language remains an IME setting. Unicode
+  text is supported through clipboard sharing, but not as direct key-event
+  injection.
 
 Modifier or function-key shortcuts do not work
 

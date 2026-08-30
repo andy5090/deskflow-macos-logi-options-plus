@@ -16,6 +16,7 @@ import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -29,6 +30,114 @@ import java.util.Set;
  * are resolved by reflection inside app_process.
  */
 public final class InputBridge {
+    private static final class ClipboardBridge {
+        private static final String SHELL_PACKAGE = "com.android.shell";
+
+        private final Object service;
+        private final Method getPrimaryClip;
+        private final Method setPrimaryClip;
+        private final Class<?> clipDataClass;
+        private final Method newPlainText;
+        private final int userId;
+
+        ClipboardBridge() throws Exception {
+            Class<?> serviceManagerClass = Class.forName("android.os.ServiceManager");
+            Method getService = serviceManagerClass.getMethod("getService", String.class);
+            Object binder = getService.invoke(null, "clipboard");
+            if (binder == null) {
+                throw new IllegalStateException("Android clipboard service is unavailable");
+            }
+
+            Class<?> binderClass = Class.forName("android.os.IBinder");
+            Class<?> stubClass = Class.forName("android.content.IClipboard$Stub");
+            Method asInterface = stubClass.getMethod("asInterface", binderClass);
+            service = asInterface.invoke(null, binder);
+            getPrimaryClip = findMethod(service.getClass(), "getPrimaryClip", false);
+            setPrimaryClip = findMethod(service.getClass(), "setPrimaryClip", true);
+
+            clipDataClass = Class.forName("android.content.ClipData");
+            newPlainText = clipDataClass.getMethod(
+                    "newPlainText", CharSequence.class, CharSequence.class);
+            Class<?> userHandleClass = Class.forName("android.os.UserHandle");
+            userId = (Integer) userHandleClass.getMethod("myUserId").invoke(null);
+        }
+
+        private static Method findMethod(Class<?> serviceClass, String name,
+                                         boolean needsClipData) throws Exception {
+            for (Method method : serviceClass.getMethods()) {
+                if (!method.getName().equals(name)) {
+                    continue;
+                }
+                boolean hasClipData = false;
+                for (Class<?> parameter : method.getParameterTypes()) {
+                    if (parameter.getName().equals("android.content.ClipData")) {
+                        hasClipData = true;
+                        break;
+                    }
+                }
+                if (hasClipData == needsClipData) {
+                    method.setAccessible(true);
+                    return method;
+                }
+            }
+            throw new NoSuchMethodException(name);
+        }
+
+        private Object attributionSource(Class<?> type) throws Exception {
+            Class<?> builderClass = Class.forName("android.content.AttributionSource$Builder");
+            Object builder = builderClass.getConstructor(int.class).newInstance(2000);
+            builderClass.getMethod("setPackageName", String.class).invoke(builder, SHELL_PACKAGE);
+            Object source = builderClass.getMethod("build").invoke(builder);
+            return type.cast(source);
+        }
+
+        private Object[] arguments(Method method, Object clipData) throws Exception {
+            Class<?>[] types = method.getParameterTypes();
+            Object[] arguments = new Object[types.length];
+            int stringIndex = 0;
+            int integerIndex = 0;
+            for (int index = 0; index < types.length; ++index) {
+                Class<?> type = types[index];
+                if (type == clipDataClass) {
+                    arguments[index] = clipData;
+                } else if (type == String.class) {
+                    arguments[index] = stringIndex++ == 0 ? SHELL_PACKAGE : null;
+                } else if (type == int.class) {
+                    arguments[index] = integerIndex++ == 0 ? userId : 0;
+                } else if (type == long.class) {
+                    arguments[index] = 0L;
+                } else if (type == boolean.class) {
+                    arguments[index] = false;
+                } else if (type.getName().equals("android.content.AttributionSource")) {
+                    arguments[index] = attributionSource(type);
+                } else {
+                    throw new IllegalArgumentException(
+                            "unsupported clipboard argument " + type.getName());
+                }
+            }
+            return arguments;
+        }
+
+        String getText() throws Exception {
+            Object clip = getPrimaryClip.invoke(service, arguments(getPrimaryClip, null));
+            if (clip == null) {
+                return "";
+            }
+            int itemCount = (Integer) clipDataClass.getMethod("getItemCount").invoke(clip);
+            if (itemCount == 0) {
+                return "";
+            }
+            Object item = clipDataClass.getMethod("getItemAt", int.class).invoke(clip, 0);
+            CharSequence text = (CharSequence) item.getClass().getMethod("getText").invoke(item);
+            return text == null ? "" : text.toString();
+        }
+
+        void setText(String text) throws Exception {
+            Object clip = newPlainText.invoke(null, "Deskflow", text);
+            setPrimaryClip.invoke(service, arguments(setPrimaryClip, clip));
+        }
+    }
+
     private static final class UhidKeyboard implements AutoCloseable {
         private static final int UHID_CREATE2 = 11;
         private static final int UHID_INPUT2 = 12;
@@ -388,6 +497,7 @@ public final class InputBridge {
     private final Class<?> pointerCoordsClass;
     private final UhidKeyboard uhidKeyboard;
     private final UhidMouse uhidMouse;
+    private final ClipboardBridge clipboard;
 
     private final Map<Integer, Long> keyDownTimes = new HashMap<>();
     private long mouseDownTime;
@@ -468,6 +578,55 @@ public final class InputBridge {
             }
         }
         uhidKeyboard = keyboard;
+
+        ClipboardBridge clipboardBridge = null;
+        try {
+            clipboardBridge = new ClipboardBridge();
+        } catch (Exception error) {
+            System.err.println("Deskflow clipboard unavailable: " + error);
+        }
+        clipboard = clipboardBridge;
+    }
+
+    private static String encodeText(String text) {
+        if (text.isEmpty()) {
+            return "-";
+        }
+        return Base64.getEncoder().encodeToString(text.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String decodeText(String encoded) {
+        if (encoded.equals("-")) {
+            return "";
+        }
+        return new String(Base64.getDecoder().decode(encoded), StandardCharsets.UTF_8);
+    }
+
+    private void getClipboard(String requestId) {
+        try {
+            if (clipboard == null) {
+                throw new IllegalStateException("clipboard service is unavailable");
+            }
+            System.out.println("CLIP " + requestId + " OK " + encodeText(clipboard.getText()));
+        } catch (Exception error) {
+            System.err.println("Deskflow clipboard read failed: " + error);
+            System.out.println("CLIP " + requestId + " ERROR -");
+        }
+        System.out.flush();
+    }
+
+    private void setClipboard(String requestId, String encodedText) {
+        try {
+            if (clipboard == null) {
+                throw new IllegalStateException("clipboard service is unavailable");
+            }
+            clipboard.setText(decodeText(encodedText));
+            System.out.println("CLIP " + requestId + " OK -");
+        } catch (Exception error) {
+            System.err.println("Deskflow clipboard write failed: " + error);
+            System.out.println("CLIP " + requestId + " ERROR -");
+        }
+        System.out.flush();
     }
 
     private long now() throws Exception {
@@ -586,7 +745,8 @@ public final class InputBridge {
     private void run() throws Exception {
         System.out.println("READY " + displayId
                 + " MOUSE_" + (uhidMouse == null ? "SDK" : "UHID")
-                + " KEYBOARD_" + (uhidKeyboard == null ? "SDK" : "UHID"));
+                + " KEYBOARD_" + (uhidKeyboard == null ? "SDK" : "UHID")
+                + " CLIPBOARD_" + (clipboard == null ? "NONE" : "TEXT"));
         System.out.flush();
         BufferedReader reader = new BufferedReader(
                 new InputStreamReader(System.in, StandardCharsets.UTF_8));
@@ -615,6 +775,12 @@ public final class InputBridge {
                 case "S":
                     scroll(Float.parseFloat(fields[1]), Float.parseFloat(fields[2]),
                             Float.parseFloat(fields[3]), Float.parseFloat(fields[4]));
+                    break;
+                case "CG":
+                    getClipboard(fields[1]);
+                    break;
+                case "CS":
+                    setClipboard(fields[1], fields[2]);
                     break;
                 case "Q":
                     return;

@@ -14,6 +14,7 @@
 #include <array>
 #include <cstdint>
 #include <set>
+#include <string>
 
 namespace deskflow {
 
@@ -70,6 +71,7 @@ protected:
 private:
   static int androidButton(ButtonID id);
   void releaseAllButtons();
+  void sendClipboardEvent(EventTypes type, ClipboardID id);
   int32_t clampedX(int32_t x) const;
   int32_t clampedY(int32_t y) const;
 
@@ -82,7 +84,10 @@ private:
   mutable bool m_suppressNextAbsoluteMove = false;
   uint32_t m_activeSides = 0;
   uint32_t m_sequenceNumber = 0;
+  IClipboard::Time m_clipboardTime = 0;
+  std::string m_lastAndroidClipboard;
   std::set<ButtonID> m_pressedButtons;
+  bool m_androidClipboardInitialized = false;
   bool m_enabled = false;
   bool m_isOnScreen = false;
 };
