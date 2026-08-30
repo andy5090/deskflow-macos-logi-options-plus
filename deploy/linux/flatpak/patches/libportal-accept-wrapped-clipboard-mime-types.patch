@@ -1,0 +1,22 @@
+diff --git a/libportal/clipboard.c b/libportal/clipboard.c
+index 0ca16d8..a526038 100644
+--- a/libportal/clipboard.c
++++ b/libportal/clipboard.c
+@@ -42 +42 @@ on_selection_owner_changed (GDBusConnection *bus,
+-  g_autofree const char **mime_types = NULL;
++  g_auto(GStrv) mime_types = NULL;
+@@ -51 +51,13 @@ on_selection_owner_changed (GDBusConnection *bus,
+-  g_variant_lookup (variant, "mime_types", "^a&s", &mime_types);
++  if (!g_variant_lookup (variant, "mime_types", "^as", &mime_types))
++    {
++      /* Qt may wrap a QStringList in a single-element D-Bus struct when it is
++       * stored in a QVariantMap. Accept that representation as a compatibility
++       * fallback while retaining the portal-specified string array path. */
++      g_autoptr(GVariant) wrapped_mime_types =
++        g_variant_lookup_value (variant, "mime_types", G_VARIANT_TYPE ("(as)"));
++      if (wrapped_mime_types)
++        {
++          g_autoptr(GVariant) string_array = g_variant_get_child_value (wrapped_mime_types, 0);
++          mime_types = g_variant_dup_strv (string_array, NULL);
++        }
++    }

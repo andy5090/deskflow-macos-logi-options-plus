@@ -66,6 +66,8 @@ modules:
         url: https://github.com/flatpak/libportal.git
         tag: 0.10.0
         commit: c23024018c8eb076549a1517fcb2d7f80d3e2ed5
+      - type: patch
+        path: patches/libportal-accept-wrapped-clipboard-mime-types.patch
   - name: deskflow
     buildsystem: cmake-ninja
     config-opts:
