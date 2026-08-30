@@ -221,20 +221,8 @@ void PortalClipboard::serveSelectionTransfer(EiClipboard *cache, XdpSession *ses
     return;
   }
 
-  cache->open(0);
-  QByteArray raw;
-  const bool hasFormat = cache->has(requested->format);
-  if (hasFormat)
-    raw = QByteArray::fromStdString(cache->get(requested->format));
-  cache->close();
-
-  const auto data = encodeFormat(requested->format, raw);
-  if (data.isEmpty()) {
-    LOG_DEBUG("clipboard has no data for mime: %s", mime);
-    xdp_session_selection_write_done(session, serial, false);
-    return;
-  }
-
+  // Claim the transfer before reading or encoding the cached data. Portal
+  // backends can invalidate the serial when a newer selection replaces it.
   const int fd = xdp_session_selection_write(session, serial);
   if (fd < 0) {
     LOG_WARN("failed to open clipboard selection write fd");
@@ -250,6 +238,27 @@ void PortalClipboard::serveSelectionTransfer(EiClipboard *cache, XdpSession *ses
     return;
   }
 
+  const auto finishTransfer = [&pipe, session, serial](bool success) {
+    // Close first so the receiving application observes EOF before the portal
+    // considers the transfer complete.
+    pipe.close();
+    xdp_session_selection_write_done(session, serial, success);
+  };
+
+  cache->open(0);
+  QByteArray raw;
+  const bool hasFormat = cache->has(requested->format);
+  if (hasFormat)
+    raw = QByteArray::fromStdString(cache->get(requested->format));
+  cache->close();
+
+  const auto data = encodeFormat(requested->format, raw);
+  if (data.isEmpty()) {
+    LOG_DEBUG("clipboard has no data for mime: %s", mime);
+    finishTransfer(false);
+    return;
+  }
+
   const char *buf = data.constData();
   qint64 total = data.size();
   qint64 written = 0;
@@ -257,20 +266,20 @@ void PortalClipboard::serveSelectionTransfer(EiClipboard *cache, XdpSession *ses
     pollfd pfd{fd, POLLOUT, 0};
     if (poll(&pfd, 1, kWriteTimeoutMs) <= 0) {
       LOG_ERR("timed out writing clipboard selection");
-      xdp_session_selection_write_done(session, serial, false);
+      finishTransfer(false);
       return;
     }
 
     qint64 n = pipe.write(buf + written, total - written);
     if (n <= 0) {
       LOG_ERR("clipboard pipe write returned %lld", static_cast<long long>(n));
-      xdp_session_selection_write_done(session, serial, false);
+      finishTransfer(false);
       return;
     }
     written += n;
   }
 
-  xdp_session_selection_write_done(session, serial, true);
+  finishTransfer(true);
   LOG_DEBUG("clipboard selection transfer complete, bytes: %lld", static_cast<long long>(written));
 }
 
